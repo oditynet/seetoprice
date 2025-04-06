@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "name": "seetoprice",
+  "version": "1.0.1",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "notifications",
+    "alarms",
+    "tabs",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "run_at": "document_end"
+  }],
+  "browser_action": {
+    "default_icon": "icons/icon48.png",
+    "default_popup": "popup/popup.html"
+  }
+}
