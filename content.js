@@ -39,14 +39,32 @@ document.addEventListener('contextmenu', (e) => {
     return path.join(' > ');
   };
 
-  const price = targetElement.textContent
-    .replace(/[^\d₽]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const price = targetElement.textContent.trim()
+//    .replace(/[^\d₽]/g, ' ')
+//    .replace(/\s+/g, ' ')
+//    .trim();
+
+
+   const priceParts = price.split('₽')
+     .map(p => p.trim())
+     .filter(p => p !== '');
+
+   let finalPrice;
+
+   // Ищем индекс элемента с "Выгода"
+   const discountIndex = priceParts.findIndex(p => p.includes('Выгода'));
+   
+   if (discountIndex !== -1 && priceParts.length > discountIndex + 1) {
+     // Если нашли "Выгода" и есть следующий элемент - берем его
+      finalPrice = `${priceParts[discountIndex + 1]} ₽`;
+   } else {
+     // Иначе берем первый элемент
+     finalPrice = `${priceParts[0]} ₽`;
+   }
 
   lastPriceData = {
     selector: getSelector(targetElement),
-    price: price.match(/\d[\d\s]*₽?/)?.[0] || null
+      price: finalPrice
   };
 }, true);
 

@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <a href="${data.url}">Товар</a>
                 <div class="price">${data.originalPrice || 'Цена не определена'}</div>
                 <div class="price">${data.currentPrice || 'Цена не определена'}</div>
-                <button class="delete-btn" data-url="${encodeURIComponent(url)}">×</button>
+                <button class="delete-btn" data-url="${encodeURIComponent(url)}"> <img src="../icons/del.png" alt="Удалить"></button>
               </div>
             `;
           } catch (e) {

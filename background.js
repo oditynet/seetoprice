@@ -70,16 +70,30 @@ async function checkPrices() {
       const [currentPrice] = await browser.tabs.executeScript(tab.id, {
         code: `
             document.querySelector('${item.selector}')?.textContent
-            ?.split('₽')[0]
-            ?.trim()+ ' ₽'
         `
       });
       await browser.tabs.remove(tab.id);
 
+   const priceParts = currentPrice.split('₽')
+     .map(p => p.trim())
+     .filter(p => p !== '');
+
+   let finalPrice;
+
+   // Ищем индекс элемента с "Выгода"
+   const discountIndex = priceParts.findIndex(p => p.includes('Выгода'));
+  // sendPriceAlert(item,discountIndex);
+   if (discountIndex !== -1 && priceParts.length > discountIndex + 1) {
+     // Если нашли "Выгода" и есть следующий элемент - берем его
+      finalPrice = `${priceParts[discountIndex + 1]} ₽`;
+   } else {
+     // Иначе берем первый элемент
+     finalPrice = `${priceParts[0]} ₽`;
+   }
       // Сравниваем цены
-      if (currentPrice && currentPrice !== item.currentPrice) { //!==
-        await updatePrice(itemId, currentPrice);
-        sendPriceAlert(item, currentPrice);
+      if (finalPrice && finalPrice !== item.currentPrice) { //!==
+        await updatePrice(itemId, finalPrice);
+        sendPriceAlert(item,finalPrice);
       }
 
     } catch (error) {
