@@ -1,14 +1,14 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const itemsContainer = document.getElementById('items');
+  const itemsContainer = document.getElementById('items')
   
   const renderItems = async () => {
     try {
-      const items = await browser.storage.local.get();
-      itemsContainer.innerHTML = '';
+      const items = await browser.storage.local.get()
+      itemsContainer.innerHTML = ''
       
       if (!items || Object.keys(items).length === 0) {
-        itemsContainer.innerHTML = '<div class="empty">Нет отслеживаемых цен</div>';
-        return;
+        itemsContainer.innerHTML = '<div class="empty">Нет отслеживаемых цен</div>'
+        return
       }
 
       itemsContainer.innerHTML = Object.entries(items)
@@ -21,33 +21,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="price">${data.currentPrice || 'Цена не определена'}</div>
                 <button class="delete-btn" data-url="${encodeURIComponent(url)}"> <img src="../icons/del.png" alt="Удалить"></button>
               </div>
-            `;
+            `
           } catch (e) {
-            console.error(`Ошибка обработки URL ${url}:`, e);
-            return ''; // Пропускаем некорректные записи
+            console.error(`Ошибка обработки URL ${url}:`, e)
+            return '' // Пропускаем некорректные записи
           }
         })
-        .join('');
+        .join('')
 
       // Обработчики удаления
       document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const url = decodeURIComponent(btn.dataset.url);
-          await browser.storage.local.remove(url);
-          await renderItems(); // Перерисовываем список
-        });
-      });
+          e.stopPropagation()
+          const url = decodeURIComponent(btn.dataset.url)
+          await browser.storage.local.remove(url)
+          await renderItems() // Перерисовываем список
+        })
+      })
 
     } catch (error) {
-      console.error('Ошибка загрузки данных:', error);
+      console.error('Ошибка загрузки данных:', error)
       itemsContainer.innerHTML = `
         <div class="error">
           Ошибка загрузки. Попробуйте обновить страницу.
         </div>
-      `;
+      `
     }
-  };
+  }
 
-  await renderItems();
-});
+  await renderItems()
+})
