@@ -1,4 +1,16 @@
 let lastPriceData = null
+if (window.location.hostname.includes('ozon.ru')) {
+  // Специальная логика для Ozon
+  document.addEventListener('contextmenu', (e) => {
+    const priceElement = e.target.closest('[data-widget*="Price"]');
+    if (priceElement) {
+      browser.runtime.sendMessage({
+        action: "setOzonPrice",
+        element: priceElement.outerHTML
+      });
+    }
+  });
+}
 
 // Обработчик контекстного меню
 document.addEventListener('contextmenu', (e) => {

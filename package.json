@@ -4,7 +4,7 @@
 	"description": " Look for a price at the vceinstrumenti.ru site",
 	"license": "GNU GPL v2",
 	"main": "background.js",
-	"version": "1.0.2.3",
+	"version": "1.0.3",
 	"title": "SeetoPrice",
         "id": "oditynet@seetoprice",
         "homepage":"https://github.com/oditynet/seetoprice",

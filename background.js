@@ -5,6 +5,112 @@ browser.contextMenus.create({
   contexts: ["all"]
 })
 
+function parseOzonPrice(document) {
+  try {
+    // Поиск основной цены
+    const priceElement = document.querySelector('[data-widget="webPrice"] span');
+    const oldPriceElement = document.querySelector('[data-widget="webOldPrice"] span');
+    
+    let currentPrice = null;
+    let previousPrice = null;
+
+    if (priceElement) {
+      currentPrice = priceElement.textContent
+        .replace(/[^\d]/g, '')
+        .trim();
+    }
+
+    if (oldPriceElement) {
+      previousPrice = oldPriceElement.textContent
+        .replace(/[^\d]/g, '')
+        .trim();
+    }
+
+    return {
+      price: currentPrice,
+      previousPrice: previousPrice
+    };
+  } catch (e) {
+    console.error('Ozon parse error:', e);
+    return null;
+  }
+}
+
+// Обновленная функция проверки цен
+async function checkPrices() {
+  const items = await browser.storage.local.get();
+
+  for (const [itemId, item] of Object.entries(items)) {
+    try {
+      const tab = await browser.tabs.create({
+        url: item.url,
+        active: false
+      });
+
+      await new Promise(resolve => 
+        browser.tabs.onUpdated.addListener(function listener(tabId, info) {
+          if (tabId === tab.id && info.status === 'complete') {
+            browser.tabs.onUpdated.removeListener(listener);
+            resolve();
+          }
+        })
+      );
+
+      // Определяем тип сайта
+      const url = new URL(item.url);
+      let priceData = null;
+
+      if (url.hostname.includes('ozon.ru')) {
+        // Для Ozon используем специальный парсер
+        const [result] = await browser.tabs.executeScript(tab.id, {
+          code: `(${parseOzonPrice.toString()})(document)`
+        });
+        priceData = result;
+      } else {
+        // Стандартный парсер для других сайтов
+        const [currentPrice] = await browser.tabs.executeScript(tab.id, {
+          code: `document.querySelector('${item.selector}')?.textContent`
+        });
+        priceData = { price: currentPrice };
+      }
+
+      await browser.tabs.remove(tab.id);
+
+      // Обработка полученных данных
+      if (priceData) {
+        let finalPrice;
+        const priceParts = (priceData.price || '').split('₽')
+          .map(p => p.trim())
+          .filter(p => p !== '');
+
+        if (url.hostname.includes('ozon.ru')) {
+          // Специальная обработка для Ozon
+          finalPrice = priceData.price ? `${priceData.price} ₽` : null;
+          const previousPrice = priceData.previousPrice ? `${priceData.previousPrice} ₽` : null;
+          
+          if (previousPrice && previousPrice !== item.previousPrice) { 
+            await updatePrice(itemId, finalPrice, previousPrice);
+          }
+        } else {
+          // Стандартная обработка
+          const discountIndex = priceParts.findIndex(p => p.includes('Выгода'));
+          finalPrice = discountIndex !== -1 ? 
+            `${priceParts[discountIndex + 1]} ₽` : 
+            `${priceParts[0]} ₽`;
+        }
+
+        if (finalPrice && finalPrice !== item.currentPrice) {
+          await updatePrice(itemId, finalPrice, priceData.previousPrice);
+          sendPriceAlert(item, finalPrice);
+        }
+      }
+
+    } catch (error) {
+      console.error(`Ошибка проверки ${itemId}:`, error);
+    }
+  }
+}
+
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== "seetoprice") return
 
@@ -44,74 +150,21 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 })
 
-// Проверка цен
-async function checkPrices() {
-  const items = await browser.storage.local.get()
+async function updatePrice(itemId, newPrice, previousPrice = null) {
+  const item = await browser.storage.local.get(itemId);
+  const updateData = {
+    ...item[itemId],
+    currentPrice: newPrice,
+    lastChecked: Date.now()
+  };
 
-  for (const [itemId, item] of Object.entries(items)) {
-    try {
-      // Открываем страницу в фоновом режиме
-      const tab = await browser.tabs.create({
-        url: item.url,
-        active: false
-      })
-
-      // Ждем полной загрузки страницы
-      await new Promise(resolve => 
-        browser.tabs.onUpdated.addListener(function listener(tabId, info) {
-          if (tabId === tab.id && info.status === 'complete') {
-            browser.tabs.onUpdated.removeListener(listener)
-            resolve()
-          }
-        })
-      )
-
-      // Получаем текущую цену
-      const [currentPrice] = await browser.tabs.executeScript(tab.id, {
-        code: `
-            document.querySelector('${item.selector}')?.textContent
-        `
-      })
-      await browser.tabs.remove(tab.id)
-
-   const priceParts = currentPrice.split('₽')
-     .map(p => p.trim())
-     .filter(p => p !== '')
-
-   let finalPrice
-
-   // Ищем индекс элемента с "Выгода"
-   const discountIndex = priceParts.findIndex(p => p.includes('Выгода'))
-  // sendPriceAlert(item,discountIndex)
-   if (discountIndex !== -1 && priceParts.length > discountIndex + 1) {
-     // Если нашли "Выгода" и есть следующий элемент - берем его
-      finalPrice = `${priceParts[discountIndex + 1]} ₽`
-   } else {
-     // Иначе берем первый элемент
-     finalPrice = `${priceParts[0]} ₽`
-   }
-      // Сравниваем цены
-      if (finalPrice && finalPrice !== item.currentPrice) { //!==
-        await updatePrice(itemId, finalPrice)
-        sendPriceAlert(item,finalPrice)
-      }
-
-    } catch (error) {
-      console.error(`Ошибка проверки ${itemId}:`, error)
-    }
+  if (previousPrice) {
+    updateData.previousPrice = previousPrice;
   }
-}
 
-async function updatePrice(itemId, newPrice) {
-  console.log(newPrice)
-  const item = await browser.storage.local.get(itemId)
   await browser.storage.local.set({
-    [itemId]: {
-      ...item[itemId],
-      currentPrice: newPrice,
-      lastChecked: Date.now()
-    }
-  })
+    [itemId]: updateData
+  });
 }
 
 function sendPriceAlert(item, newPrice) {
