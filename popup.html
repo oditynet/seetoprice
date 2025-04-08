@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <style>
-    body { width: 350px; padding: 15px; font-family: Arial; }
+   body { width: 350px; padding: 15px; font-family: Arial; }
     .item { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
-    .delete-btn { float: right; cursor: pointer; color: red; }
+    .delete-btn { float: right; cursor: pointer; color: red; top: -8px; position: relative; }
     .delete-btn img {  width: 20px;  height: 20px;}
-    .product-link {  color: #0066cc;  text-decoration: none;  font-weight: bold;  display: block;  margin-bottom: 5px;  overflow: hidden;  text-overflow: ellipsis;  white-space: nowrap;  max-width: 200px;}
+    h3 {font-family: 'Georgia', serif;  font-style: italic;  font-size: 14px;  margin: 0;}
+    .dev {font-family: 'Georgia', serif;  font-style: italic;  font-size: 12px;  margin: 0;}
+     .price {font-family: 'Georgia', serif;  font-style: italic;  font-size: 16px;  margin: 0;}
+    .product-link {  color: #91c1c3 ;  text-decoration: none;  font-weight: bold;  display: block;  margin-bottom: 5px;  overflow: hidden;  text-overflow: ellipsis;  white-space: nowrap;  max-width: 200px;}
 
 .product-link:hover {
   text-decoration: underline;
@@ -16,7 +19,9 @@
 </head>
 <body>
   <h3>Отслеживаемые цены:</h3>
+
   <div id="items"></div>
   <script src="popup.js"></script>
+  <div class="dev">Приложение seetoprice<br> Версия 1.0.3.1<br> Разработчик    oditynet</div>
 </body>
 </html>
