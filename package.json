@@ -8,5 +8,5 @@
 	"title": "SeetoPrice",
         "id": "oditynet@seetoprice",
         "homepage":"https://github.com/oditynet/seetoprice",
-	"icon":{"48":"resource://oditynet@seetoprice/icons/icon48.png"}
+	"icon":{"48":"icons/icon48.png"}
 }
