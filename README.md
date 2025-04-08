@@ -24,4 +24,4 @@ your-addon.zip
 ```
 about:debugging#/runtime/this-firefox
 ```
-<img src="https://github.com/oditynet/seetoprice/blob/main/video.gif" title="example" width="500" />
+<img src="https://github.com/oditynet/seetoprice/blob/main/video.gif" title="example" width="800" />
