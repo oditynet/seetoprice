@@ -40,13 +40,30 @@ document.addEventListener('DOMContentLoaded', async () => {
           try {
             const productName = getProductNameFromUrl(data.url);
             return `
-              <div class="item">
-                <a href="${data.url}" class="product-link" target="_blank">${productName}</a>
-                <div class="price">${data.originalPrice || 'Цена не определена'}</div>
-                <div class="price">${data.currentPrice || 'Цена не определена'}</div>
-                <button class="delete-btn" data-id="${id}"><img src="../icons/del.png" alt="Удалить"></button>
-              </div>
-            `;
+  <div class="item">
+    <a href="${data.url}" class="product-link" target="_blank">${productName}</a>
+    <div class="price-row">
+      <span class="price-label">Исходная цена:</span>
+      <span class="price-value">${data.originalPrice || 'N/A'}</span>
+    </div>
+    <div class="price-row">
+      <span class="price-label">Текущая цена:</span>
+      <span class="price-value">${data.currentPrice || 'N/A'}</span>
+    </div>
+    <div class="history">
+      <div class="history-title">История изменений:</div>
+      <ul class="history-list">
+        ${(data.priceHistory || []).slice().reverse().slice(0, 5).map(entry => `
+          <li class="history-item">
+            <span class="history-time">${new Date(entry.timestamp).toLocaleString()}</span>
+            <span class="history-price">${entry.price}</span>
+          </li>
+        `).join('')}
+      </ul>
+    </div>
+    <button class="delete-btn" data-id="${id}"><img src="../icons/del.png" alt="Удалить"></button>
+  </div>
+`;            
           } catch (e) {
             console.error('Error rendering item:', e);
             return '';

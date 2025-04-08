@@ -128,21 +128,22 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     const domain = new URL(tab.url).hostname
     const itemId = `${domain}_${Date.now()}`
 
-    await browser.storage.local.set({
-      [itemId]: {
-        url: tab.url,
-        selector,
-        originalPrice: price,
-        currentPrice: price,
-        lastChecked: Date.now()
-      }
-    })
+  await browser.storage.local.set({
+  [itemId]: {
+    url: tab.url,
+    selector,
+    originalPrice: price,
+    currentPrice: price,
+    lastChecked: Date.now(),
+    priceHistory: [] // Инициализируем пустую историю
+  }
+  });
 
     browser.notifications.create({
       type: "basic",
       title: "Начато отслеживание",
       message: `Цена: ${price}\nМагазин: ${domain}`,
-      iconUrl: "/icons/icon48.png"
+      iconUrl: "../icons/icon48.png"
     })
 
   } catch (error) {
@@ -155,16 +156,16 @@ async function updatePrice(itemId, newPrice, previousPrice = null) {
   const updateData = {
     ...item[itemId],
     currentPrice: newPrice,
-    lastChecked: Date.now()
+    lastChecked: Date.now(),
+    priceHistory: [...(item[itemId].priceHistory || []), 
+      { price: newPrice, timestamp: Date.now() }]
   };
 
   if (previousPrice) {
     updateData.previousPrice = previousPrice;
   }
 
-  await browser.storage.local.set({
-    [itemId]: updateData
-  });
+  await browser.storage.local.set({ [itemId]: updateData });
 }
 
 function sendPriceAlert(item, newPrice) {
@@ -172,7 +173,7 @@ function sendPriceAlert(item, newPrice) {
     type: "basic",
     title: "Цена изменилась!",
     message: `Магазин: ${new URL(item.url).hostname}\nБыло: ${item.originalPrice}\nСтало: ${newPrice}`,
-    iconUrl: "/icons/icon48.png"
+    iconUrl: "../icons/icon48.png"
   })
 }
 
