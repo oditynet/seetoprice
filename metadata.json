@@ -3,9 +3,9 @@
     "en-US": "follow to a prices at the site vceinstrumenti.ru."
   },
   "categories": [
-    "other"
+    "shopping"
   ],
   "version": {
-    "license": "MPL-2.0"
+    "license": "GPL-2.0-or-later"
   }
 }
