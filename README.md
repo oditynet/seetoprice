@@ -10,7 +10,7 @@
 [![][github-stars-shield]][github-stars-link]
 [![][github-license-shield]][github-license-shield]<br/>
 
-Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4469502/d15151e3563243ae9309-1.0.3.xpi)
+Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4469953/d15151e3563243ae9309-1.0.3.1.xpi)
 
 <a name="readme-left"></a>
 <div align="left">
