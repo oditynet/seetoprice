@@ -19,6 +19,12 @@ Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4470266/d15
 
 В версии 1.0.4 добавлена история. вы можете смотерть на цену в ее динамике.
 
+<br>
+
+TODO: Иногда с Ozon первым уведомлением приходит та же сумма.но без проблов.
+
+<br>
+
 Структура директории следующая:
 ```
 seetoprice.zip
@@ -45,3 +51,10 @@ about:debugging#/runtime/this-firefox
 [github-stars-shield]: https://img.shields.io/github/stars/oditynet/seetoprice?style=flat-square&logo=github&labelColor=black&color=508CF9
 [github-stars-link]: https://github.com/oditynet/seetoprice/stargazers
 [github-license-shield]: https://img.shields.io/github/license/oditynet/seetoprice?style=flat-square&logo=github&labelColor=black&color=508CF9
+
+И на последок фотография внешнего вида.
+
+<br>
+
+For example ver. 1.0.4
+<img src="https://github.com/oditynet/seetoprice/blob/main/screen2.png" title="1.0.4" width="800" />
