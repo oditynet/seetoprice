@@ -21,10 +21,10 @@ Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4469953/d15
 
 Структура директории следующая:
 ```
-your-addon.zip
+seetoprice.zip
 ├── manifest.json
-├── background.js (если используется)
-├── content.js (если используется)
+├── background.js
+├── content.js
 ├── icons/
 │   └── icon48.png
 │   └── del.png
