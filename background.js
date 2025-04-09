@@ -2,7 +2,7 @@
 browser.contextMenus.create({
   id: "seetoprice",
   title: "Отслеживать цену",
-  contexts: ["all"]
+  contexts: ["all"]  
 })
 
 function parseOzonPrice(document) {
@@ -39,9 +39,14 @@ function parseOzonPrice(document) {
 // Обновленная функция проверки цен
 async function checkPrices() {
   const items = await browser.storage.local.get();
-
+  let historylen;
   for (const [itemId, item] of Object.entries(items)) {
     try {
+      //TIME not used
+      if( itemId === "settings"){
+        historylen=item.checkHistory;
+        continue; 
+      }
       const tab = await browser.tabs.create({
         url: item.url,
         active: false
@@ -89,7 +94,7 @@ async function checkPrices() {
           const previousPrice = priceData.previousPrice ? `${priceData.previousPrice} ₽` : null;
           
           if (previousPrice && previousPrice !== item.previousPrice) { 
-            await updatePrice(itemId, finalPrice, previousPrice);
+            await updatePrice(itemId, finalPrice, previousPrice,historylen);
           }
         } else {
           // Стандартная обработка
@@ -100,7 +105,7 @@ async function checkPrices() {
         }
 
         if (finalPrice && finalPrice !== item.currentPrice) {
-          await updatePrice(itemId, finalPrice, priceData.previousPrice);
+          await updatePrice(itemId, finalPrice, priceData.previousPrice,historylen);
           sendPriceAlert(item, finalPrice);
         }
       }
@@ -151,13 +156,13 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 })
 
-async function updatePrice(itemId, newPrice, previousPrice = null) {
+async function updatePrice(itemId, newPrice, previousPrice = null,historylen) {
   const item = await browser.storage.local.get(itemId);
   const updateData = {
     ...item[itemId],
     currentPrice: newPrice,
     lastChecked: Date.now(),
-    priceHistory: [...(item[itemId].priceHistory || []), 
+    priceHistory: [...(item[itemId].priceHistory || []).slice(-historylen), 
       { price: newPrice, timestamp: Date.now() }]
   };
 
@@ -177,8 +182,15 @@ function sendPriceAlert(item, newPrice) {
   })
 }
 
+browser.runtime.onMessage.addListener((message) => {
+  if (message.action === "updateInterval") {
+    browser.alarms.create("priceCheck", {
+      periodInMinutes: message.interval
+    });
+  }
+});
 // Запускаем проверку каждые 10 минут
-browser.alarms.create("priceCheck", { periodInMinutes: 10 })
+browser.alarms.create("priceCheck", { periodInMinutes: 10 }) // ТОЛЬКО для дебага теперь
 browser.alarms.onAlarm.addListener(checkPrices)
 
 // Обработчик ошибок

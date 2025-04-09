@@ -22,12 +22,81 @@ function getProductNameFromUrl(url) {
   }
 }
 
+browser.runtime.onMessage.addListener((message) => {
+  if (message.action === "updateInterval") {
+    browser.alarms.create("priceCheck", {
+      History: message.history
+    });
+  }
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
   const itemsContainer = document.getElementById('items');
+  
+    const settingsButton = document.getElementById('settingsButton');
+  const settingsContainer = document.getElementById('settingsContainer');
+  const saveButton = document.getElementById('saveSettings');
+  const checkIntervalInput = document.getElementById('checkInterval');
+  const checkHistoryInput = document.getElementById('checkHistory');
+  const body = document.body;
+
+  // Загрузка сохраненных настроек
+  const { settings } = await browser.storage.local.get('settings');
+  if(!settings)
+  {
+  try{
+  await browser.storage.local.set({ settings: { checkInterval: 10, checkHistory: 5  }  });
+  } catch (error) {
+  console.error('Ошибка сохранения настроек history:', error);
+  }
+  }
+  checkIntervalInput.value = settings?.checkInterval || 10;
+  checkHistoryInput.value = settings?.checkHistory || 5;
+
+  // Обработчик кнопки настроек
+  settingsButton.addEventListener('click', () => {
+    settingsContainer.classList.toggle('visible');
+    adjustPopupHeight();
+  });
+
+  // Обработчик сохранения
+  saveButton.addEventListener('click', async () => {
+    await browser.storage.local.set({
+      settings: {
+        checkInterval: parseInt(checkIntervalInput.value) || 10,
+        checkHistory: parseInt(checkHistoryInput.value) || 5
+      }
+    });
+    
+    // Обновляем интервал проверки
+    browser.runtime.sendMessage({
+      action: "updateInterval",
+      interval: parseInt(checkIntervalInput.value),
+      history: parseInt(checkHistoryInput.value)
+    });
+    
+    settingsContainer.classList.remove('visible');
+    adjustPopupHeight();
+  });
+
+  // Автоматическая регулировка высоты
+  function adjustPopupHeight() {
+    const baseHeight = 350;
+    const settingsHeight = settingsContainer.offsetHeight;
+    body.style.height = settingsContainer.classList.contains('visible') 
+      ? `${baseHeight + settingsHeight}px`
+      : `${baseHeight}px`;
+  }
+
+  // Инициализация высоты
+  adjustPopupHeight();
+  
+  
   
   const renderItems = async () => {
     try {
       const items = await browser.storage.local.get();
+      let t_h;
       itemsContainer.innerHTML = '';
 
       if (!Object.keys(items).length) {
@@ -38,6 +107,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       itemsContainer.innerHTML = await Promise.all(
         Object.entries(items).map(async ([id, data]) => {
           try {
+          //TIME not used
+           if (id === "settings")
+           {
+                t_h=data.checkHistory;
+        	return ;
+            }
             const productName = getProductNameFromUrl(data.url);
             return `
   <div class="item">
@@ -53,7 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     <div class="history">
       <div class="history-title">История изменений:</div>
       <ul class="history-list">
-        ${(data.priceHistory || []).slice().reverse().slice(0, 5).map(entry => `
+        ${(data.priceHistory || []).slice().reverse().slice(0, t_h ?? 5).map(entry => `
           <li class="history-item">
             <span class="history-time">${new Date(entry.timestamp).toLocaleString()}</span>
             <span class="history-price">${entry.price}</span>
