@@ -33,7 +33,16 @@ browser.runtime.onMessage.addListener((message) => {
 document.addEventListener('DOMContentLoaded', async () => {
   const itemsContainer = document.getElementById('items');
   
-    const settingsButton = document.getElementById('settingsButton');
+  
+  await browser.browserAction.setIcon({
+    path: {
+      "48": "../icons/icon48.png"
+    }
+  });
+  
+  //priceChanged = true;
+  
+  const settingsButton = document.getElementById('settingsButton');
   const settingsContainer = document.getElementById('settingsContainer');
   const saveButton = document.getElementById('saveSettings');
   const checkIntervalInput = document.getElementById('checkInterval');
@@ -81,7 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Автоматическая регулировка высоты
   function adjustPopupHeight() {
-    const baseHeight = 350;
+    const baseHeight = 450;
     const settingsHeight = settingsContainer.offsetHeight;
     body.style.height = settingsContainer.classList.contains('visible') 
       ? `${baseHeight + settingsHeight}px`

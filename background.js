@@ -100,8 +100,8 @@ async function checkPrices() {
           // Стандартная обработка
           const discountIndex = priceParts.findIndex(p => p.includes('Выгода'));
           finalPrice = discountIndex !== -1 ? 
-            `${priceParts[discountIndex + 1]} ₽` : 
-            `${priceParts[0]} ₽`;
+            `${priceParts[discountIndex + 1]}`.replace(/[^\d]/g, '').trim()+' ₽' : 
+            `${priceParts[0]}`.replace(/[^\d]/g, '').trim()+' ₽';
         }
 
         if (finalPrice && finalPrice !== item.currentPrice) {
@@ -137,8 +137,8 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   [itemId]: {
     url: tab.url,
     selector,
-    originalPrice: price,
-    currentPrice: price,
+    originalPrice: price.replace(/[^\d]/g, '').trim()+' ₽',
+    currentPrice: price.replace(/[^\d]/g, '').trim()+' ₽',
     lastChecked: Date.now(),
     priceHistory: [] // Инициализируем пустую историю
   }
@@ -158,13 +158,28 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 
 async function updatePrice(itemId, newPrice, previousPrice = null,historylen) {
   const item = await browser.storage.local.get(itemId);
-  const updateData = {
+ 
+  const originalPrice = item[itemId].originalPrice; 
+  let updateData;
+  if  (originalPrice.replace(/[^\d]/g, '').trim() >= newPrice.replace(/[^\d]/g, '').trim()  )
+  {
+  updateData = {
     ...item[itemId],
     currentPrice: newPrice,
     lastChecked: Date.now(),
     priceHistory: [...(item[itemId].priceHistory || []).slice(-historylen), 
-      { price: newPrice, timestamp: Date.now() }]
+      { price: '-'+newPrice, timestamp: Date.now() }]
   };
+  }else
+  {
+  updateData = {
+    ...item[itemId],
+    currentPrice: newPrice,
+    lastChecked: Date.now(),
+    priceHistory: [...(item[itemId].priceHistory || []).slice(-historylen), 
+      { price: '+'+newPrice, timestamp: Date.now() }]
+  };
+  }
 
   if (previousPrice) {
     updateData.previousPrice = previousPrice;
@@ -174,12 +189,21 @@ async function updatePrice(itemId, newPrice, previousPrice = null,historylen) {
 }
 
 function sendPriceAlert(item, newPrice) {
+ browser.browserAction.setIcon({
+    path: {
+      "48": "icons/icon48_alert.png"
+    }
+  });
+  
   browser.notifications.create({
     type: "basic",
     title: "Цена изменилась!",
     message: `Магазин: ${new URL(item.url).hostname}\nБыло: ${item.originalPrice}\nСтало: ${newPrice}`,
     iconUrl: "../icons/icon48.png"
-  })
+  });
+  /*setTimeout(() => {
+    browser.notifications.clear(notificationId);
+  }, 3000);*/
 }
 
 browser.runtime.onMessage.addListener((message) => {
