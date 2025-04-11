@@ -84,5 +84,4 @@ about:debugging#/runtime/this-firefox
 
 <br>
 
-For example ver. 1.0.4
 <img src="https://github.com/oditynet/seetoprice/blob/main/screen2.png" title="1.0.4" width="800" />
