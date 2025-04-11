@@ -1,3 +1,4 @@
+//content.js
 let lastPriceData = null
 if (window.location.hostname.includes('ozon.ru')) {
   // Специальная логика для Ozon

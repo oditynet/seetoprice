@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const productName = getProductNameFromUrl(data.url);
             return `
+            <div class="item ${data.hasNewChange ? 'highlight' : ''}" data-id="${id}">
   <div class="item">
     <a href="${data.url}" class="product-link" target="_blank">${productName}</a>
     <div class="price-row">
@@ -146,6 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </ul>
     </div>
     <button class="delete-btn" data-id="${id}"><img src="../icons/del.png" alt="Удалить"></button>
+  </div>
   </div>
 `;            
           } catch (e) {
@@ -174,5 +176,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  await renderItems();
+  await renderItems();  
+  
+  
+    document.querySelectorAll('.item').forEach(async (item) => {
+      const id = item.dataset.id;
+      const itemData = await browser.storage.local.get(id);
+      
+      if (itemData[id]?.hasNewChange) {
+        item.classList.add('highlight');
+        
+        // Таймер с правильным контекстом
+        setTimeout(async () => {
+          try {
+            const currentData = await browser.storage.local.get(id);
+            if (currentData[id]) {
+              await browser.storage.local.set({
+                [id]: {
+                  ...currentData[id],
+                  hasNewChange: false
+                }
+              });
+              item.classList.remove('highlight');
+              
+              // Обновляем список после изменения
+              await renderItems();
+            }
+          } catch (e) {
+            console.error('Update error:', e);
+          }
+        }, 10000);
+      }
+    });
+  
+  
+  
 });

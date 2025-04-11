@@ -29,6 +29,17 @@
      .settings-container {      max-height: 0;      opacity: 0;      transition: all 0.3s ease;      margin-top: 10px;    }
     .settings-container.visible {      max-height: 150px;      opacity: 1;    }
 
+  .highlight {
+    animation: highlight-fade 15s forwards;
+    border-left: 4px solid #4CAF50;
+    background: linear-gradient(to right, #f8fff8 0%, #ffffff 100%);
+  }
+
+  @keyframes highlight-fade {
+    0% { background-color: #f2dbdb; border-color: #3f7d39; }
+    100% { background-color: white; border-color: transparent; }
+  }
+
   </style>
 </head>
 <body>
@@ -52,6 +63,6 @@
 
   <div id="items"></div>
   <script src="popup.js"></script>
-  <div class="dev">Seetoprice v1.1<br>Разработчик: oditynet</div>
+  <div class="dev">Seetoprice v1.1.1<br>Разработчик: oditynet</div>
 </body>
 </html>

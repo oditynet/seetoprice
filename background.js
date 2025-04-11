@@ -167,6 +167,7 @@ async function updatePrice(itemId, newPrice, previousPrice = null,historylen) {
     ...item[itemId],
     currentPrice: newPrice,
     lastChecked: Date.now(),
+     hasNewChange: true, // Добавляем флаг
     priceHistory: [...(item[itemId].priceHistory || []).slice(-historylen), 
       { price: '-'+newPrice, timestamp: Date.now() }]
   };
@@ -176,6 +177,7 @@ async function updatePrice(itemId, newPrice, previousPrice = null,historylen) {
     ...item[itemId],
     currentPrice: newPrice,
     lastChecked: Date.now(),
+     hasNewChange: true, // Добавляем флаг
     priceHistory: [...(item[itemId].priceHistory || []).slice(-historylen), 
       { price: '+'+newPrice, timestamp: Date.now() }]
   };
