@@ -10,7 +10,7 @@
 [![][github-stars-shield]][github-stars-link]
 [![][github-license-shield]][github-license-shield]<br/>
 
-Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4471594/d15151e3563243ae9309-1.1.xpi)
+Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4472104/d15151e3563243ae9309-1.1.1.xpi)
 
 <a name="readme-left"></a>
 <div align="left">
@@ -26,6 +26,8 @@ Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4471594/d15
 
 # Change:
    
+В версии 1.1.1: ДОбавлено цветовое выделение цены в списке для удобства пользования
+
 В версии 1.1:
    - добавлены новые иконки
    - изменение иконок в браузере,если цена изменена (т.н. визуальное оповещение)
