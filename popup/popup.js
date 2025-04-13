@@ -4,6 +4,9 @@ function getProductNameFromUrl(url) {
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/');
     let productPart = pathParts[2] || '';
+    if (url.includes('avito.ru')) {
+     productPart = pathParts[3] || '';
+      } 
 
     // Сокращаем до 30 символов
     if (productPart.length > 30) {

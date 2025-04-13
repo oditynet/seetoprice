@@ -104,7 +104,7 @@ async function checkPrices() {
             `${priceParts[0]}`.replace(/[^\d]/g, '').trim()+' ₽';
         }
 
-        if (finalPrice && finalPrice !== item.currentPrice) {
+        if (finalPrice && finalPrice === item.currentPrice) {
           await updatePrice(itemId, finalPrice, priceData.previousPrice,historylen);
           sendPriceAlert(item, finalPrice);
         }
@@ -144,12 +144,15 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   }
   });
 
-    browser.notifications.create({
+    const notificationId = await browser.notifications.create({
       type: "basic",
       title: "Начато отслеживание",
       message: `Цена: ${price}\nМагазин: ${domain}`,
       iconUrl: "../icons/icon48.png"
-    })
+    });
+    setTimeout(() => {
+    browser.notifications.clear(notificationId);
+  }, 2000);
 
   } catch (error) {
     handleError(error)
@@ -190,24 +193,24 @@ async function updatePrice(itemId, newPrice, previousPrice = null,historylen) {
   await browser.storage.local.set({ [itemId]: updateData });
 }
 
-function sendPriceAlert(item, newPrice) {
+async function sendPriceAlert(item, newPrice) {
+ 
  browser.browserAction.setIcon({
     path: {
       "48": "icons/icon48_alert.png"
     }
   });
   
-  browser.notifications.create({
+   const notificationId = await browser.notifications.create({
     type: "basic",
     title: "Цена изменилась!",
     message: `Магазин: ${new URL(item.url).hostname}\nБыло: ${item.originalPrice}\nСтало: ${newPrice}`,
     iconUrl: "../icons/icon48.png"
   });
-  /*setTimeout(() => {
+  setTimeout(() => {
     browser.notifications.clear(notificationId);
-  }, 3000);*/
+  }, 2000);
 }
-
 browser.runtime.onMessage.addListener((message) => {
   if (message.action === "updateInterval") {
     browser.alarms.create("priceCheck", {
@@ -216,7 +219,7 @@ browser.runtime.onMessage.addListener((message) => {
   }
 });
 // Запускаем проверку каждые 10 минут
-browser.alarms.create("priceCheck", { periodInMinutes: 10 }) // ТОЛЬКО для дебага теперь
+browser.alarms.create("priceCheck", { periodInMinutes: 0.3 }) // ТОЛЬКО для дебага теперь
 browser.alarms.onAlarm.addListener(checkPrices)
 
 // Обработчик ошибок
