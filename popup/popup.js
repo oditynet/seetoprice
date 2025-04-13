@@ -1,4 +1,33 @@
 // popup.js
+
+async function findTelegramChatId(token, expectedMessage = '/start') {
+  const apiUrl = `https://api.telegram.org/bot${token}/getUpdates`;
+  if (token == '') return '';
+  try {
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    
+    if (!data.ok) {
+      throw new Error(data.description || 'Ошибка API Telegram');
+    }
+
+    // Ищем последнее сообщение с нужным текстом
+    const update = data.result.reverse().find(u => 
+      u.message?.text?.includes(expectedMessage)
+    );
+
+    if (!update) {
+      throw new Error('Отправьте боту сообщение "' + expectedMessage + '"');
+    }
+
+    return update.message.chat.id;
+    
+  } catch (error) {
+    console.error('Ошибка получения chatID:', error);
+    throw error;
+  }
+}
+
 function getProductNameFromUrl(url) {
   try {
     const urlObj = new URL(url);
@@ -50,6 +79,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const saveButton = document.getElementById('saveSettings');
   const checkIntervalInput = document.getElementById('checkInterval');
   const checkHistoryInput = document.getElementById('checkHistory');
+  const tgToken = document.getElementById('tgToken') ;
+  const tgId = document.getElementById('tgId');
+  
   const body = document.body;
 
   // Загрузка сохраненных настроек
@@ -64,6 +96,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   checkIntervalInput.value = settings?.checkInterval || 10;
   checkHistoryInput.value = settings?.checkHistory || 5;
+  tgToken.value = settings?.tgToken;
+  if(tgToken.value != '')
+    tgId.value = await findTelegramChatId(tgToken.value);
+  else
+    tgId.value = '';
 
   // Обработчик кнопки настроек
   settingsButton.addEventListener('click', () => {
@@ -76,7 +113,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await browser.storage.local.set({
       settings: {
         checkInterval: parseInt(checkIntervalInput.value) || 10,
-        checkHistory: parseInt(checkHistoryInput.value) || 5
+        checkHistory: parseInt(checkHistoryInput.value) || 5,
+        tgToken: tgToken.value || '',
+        tgId: await findTelegramChatId(tgToken.value) || ''
       }
     });
     
@@ -84,7 +123,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     browser.runtime.sendMessage({
       action: "updateInterval",
       interval: parseInt(checkIntervalInput.value),
-      history: parseInt(checkHistoryInput.value)
+      history: parseInt(checkHistoryInput.value),
+      tgToken: tgToken.value,
+      tgId: tgToken ? tgId.value : ''
     });
     
     settingsContainer.classList.remove('visible');

@@ -5,6 +5,38 @@ browser.contextMenus.create({
   contexts: ["all"]  
 })
 
+async function sendTelegramMessage(text,tgToken,tgId) {
+  if (!tgToken || !tgId) {
+    throw new Error('Telegram настройки не найдены!');
+  }
+  const apiUrl = `https://api.telegram.org/bot${tgToken}/sendMessage`;
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: tgId,
+        text: text,
+        parse_mode: 'HTML'
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!data.ok) {
+      throw new Error(data.description || 'Unknown Telegram API error');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Telegram send error:', error);
+    throw error;
+  }
+}
+
+
 function parseOzonPrice(document) {
   try {
     // Поиск основной цены
@@ -35,16 +67,32 @@ function parseOzonPrice(document) {
     return null;
   }
 }
+async function getWilbPrice(document) {
+  await new Promise(resolve => {
+    const checkElement = () => {
+      const element = document.querySelector('.price-block');
+    //  const oldelement = document.querySelector('.price-block__old-price');
+      if (element) return resolve(element);
+      setTimeout(checkElement, 100);
+    };
+    checkElement();
+  });
+  return {price: document.querySelector('.price-block').innerText};
+}
 
 // Обновленная функция проверки цен
 async function checkPrices() {
   const items = await browser.storage.local.get();
   let historylen;
+  let tgToken;
+  let tgId;
   for (const [itemId, item] of Object.entries(items)) {
     try {
       //TIME not used
       if( itemId === "settings"){
         historylen=item.checkHistory;
+        tgToken=item.tgToken;
+        tgId=item.tgId;
         continue; 
       }
       const tab = await browser.tabs.create({
@@ -71,6 +119,14 @@ async function checkPrices() {
           code: `(${parseOzonPrice.toString()})(document)`
         });
         priceData = result;
+        
+      } else if(url.hostname.includes('wildberries.ru')) {
+          const [result] = await browser.tabs.executeScript(tab.id, {
+          code: `(${getWilbPrice.toString()})(document)`
+        });
+        priceData = result;
+//        console.log("QQQ "+priceData.price);
+
       } else {
         // Стандартный парсер для других сайтов
         const [currentPrice] = await browser.tabs.executeScript(tab.id, {
@@ -84,7 +140,8 @@ async function checkPrices() {
       // Обработка полученных данных
       if (priceData) {
         let finalPrice;
-        const priceParts = (priceData.price || '').split('₽')
+        //console.warn(priceData.price);
+        const priceParts = (priceData.price || '').trim().split('₽')
           .map(p => p.trim())
           .filter(p => p !== '');
 
@@ -96,6 +153,14 @@ async function checkPrices() {
           if (previousPrice && previousPrice !== item.previousPrice) { 
             await updatePrice(itemId, finalPrice, previousPrice,historylen);
           }
+        }else if (url.hostname.includes('wildberries.ru')) {  
+//          console.log("q1 "+ priceParts[0]);
+          finalPrice = priceParts[0].replace(/[^\d]/g, '')+' ₽';
+          const previousPrice = priceParts[2] ? priceParts[2].replace(/[^\d]/g, '')+' ₽' : priceParts[1].replace(/[^\d]/g, '')+' ₽';
+          
+          //if (previousPrice && previousPrice !== item.previousPrice) { 
+    //        await updatePrice(itemId, finalPrice, previousPrice,historylen);
+    //    }
         } else {
           // Стандартная обработка
           const discountIndex = priceParts.findIndex(p => p.includes('Выгода'));
@@ -103,10 +168,10 @@ async function checkPrices() {
             `${priceParts[discountIndex + 1]}`.replace(/[^\d]/g, '').trim()+' ₽' : 
             `${priceParts[0]}`.replace(/[^\d]/g, '').trim()+' ₽';
         }
-
-        if (finalPrice && finalPrice === item.currentPrice) {
+        console.log("item.prev= "+item.previousPrice+" item.cur="+item.currentPrice +" fin="+finalPrice);
+        if (finalPrice && finalPrice !== item.currentPrice) {
           await updatePrice(itemId, finalPrice, priceData.previousPrice,historylen);
-          sendPriceAlert(item, finalPrice);
+          sendPriceAlert(item, finalPrice,tgToken,tgId);
         }
       }
 
@@ -193,13 +258,16 @@ async function updatePrice(itemId, newPrice, previousPrice = null,historylen) {
   await browser.storage.local.set({ [itemId]: updateData });
 }
 
-async function sendPriceAlert(item, newPrice) {
+async function sendPriceAlert(item, newPrice,tgToken,tgId) {
  
  browser.browserAction.setIcon({
     path: {
       "48": "icons/icon48_alert.png"
     }
   });
+  sendTelegramMessage('Магазин: '+item.url+'\nБыло: '+item.originalPrice+'\nСтало: '+newPrice,tgToken,tgId)
+  .then(() => console.log('Сообщение отправлено'))
+  .catch(error => console.error('Ошибка:', error.message));
   
    const notificationId = await browser.notifications.create({
     type: "basic",
@@ -219,7 +287,7 @@ browser.runtime.onMessage.addListener((message) => {
   }
 });
 // Запускаем проверку каждые 10 минут
-browser.alarms.create("priceCheck", { periodInMinutes: 0.3 }) // ТОЛЬКО для дебага теперь
+browser.alarms.create("priceCheck", { periodInMinutes: 5 }) // ТОЛЬКО для дебага теперь
 browser.alarms.onAlarm.addListener(checkPrices)
 
 // Обработчик ошибок

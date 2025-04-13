@@ -48,21 +48,26 @@
   
   <div class="settings-container" id="settingsContainer">
     <div class="settings-row">
+      tg token:<input type="text" id="tgToken" placeholder="Токен бота">
+      <input type="hidden" id="tgId" placeholder="Chat ID" style="width: 120px;">
+    </div>
+    <div class="settings-row">  
       Время обновления(мин):
       <input type="number" id="checkInterval" 
              min="1" max="1440" 
-             placeholder="Интервал(минуты)"></div>
+             placeholder="Интервал(минуты)">
+      </div>
       <div class="settings-row">
       Длина истории:       
       <input type="number" id="checkHistory" 
              min="3" max="50" 
-             placeholder="Длина">         
-      <button class="save-btn" id="saveSettings">Сохранить</button>
+             placeholder="Длина">
+      <button class="save-btn" id="saveSettings">Сохранить</button></div>         
     </div>
   </div>
 
   <div id="items"></div>
   <script src="popup.js"></script>
-  <div class="dev">Seetoprice v1.1.1<br>Разработчик: oditynet</div>
+  <div class="dev">Seetoprice v1.2<br>Разработчик: oditynet</div>
 </body>
 </html>
