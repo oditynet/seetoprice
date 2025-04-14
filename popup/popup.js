@@ -3,7 +3,7 @@
 async function findTelegramChatId(token, expectedMessage = '/start') {
   const apiUrl = `https://api.telegram.org/bot${token}/getUpdates`;
   if (token == '' || token == null || token == undefined) return '';
-  console.log(token);
+  //console.log(token);
   try {
     const response = await fetch(apiUrl);
     const data = await response.json();
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   console.error('Ошибка сохранения настроек history:', error);
   }
   }
-  console.log('tg '+tgToken.value);
+  //console.log('tg '+tgToken.value);
   
   checkIntervalInput.value = settings?.checkInterval || 10;
   checkHistoryInput.value = settings?.checkHistory || 5;
@@ -249,10 +249,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                   hasNewChange: false
                 }
               });
+              await updateItem(id); 
               item.classList.remove('highlight');
               
               // Обновляем список после изменения
-              await renderItems();
+             // await renderItems();
             }
           } catch (e) {
             console.error('Update error:', e);

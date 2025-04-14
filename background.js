@@ -168,7 +168,7 @@ async function checkPrices() {
             `${priceParts[discountIndex + 1]}`.replace(/[^\d]/g, '').trim()+' ₽' : 
             `${priceParts[0]}`.replace(/[^\d]/g, '').trim()+' ₽';
         }
-        console.log("item.prev= "+item.previousPrice+" item.cur="+item.currentPrice +" fin="+finalPrice);
+        //console.log("item.prev= "+item.previousPrice+" item.cur="+item.currentPrice +" fin="+finalPrice);
         if (finalPrice && finalPrice !== item.currentPrice) {
           await updatePrice(itemId, finalPrice, priceData.previousPrice,historylen);
           sendPriceAlert(item, finalPrice,tgToken,tgId);
