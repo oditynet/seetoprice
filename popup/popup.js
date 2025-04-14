@@ -2,7 +2,8 @@
 
 async function findTelegramChatId(token, expectedMessage = '/start') {
   const apiUrl = `https://api.telegram.org/bot${token}/getUpdates`;
-  if (token == '') return '';
+  if (token == '' || token == null || token == undefined) return '';
+  console.log(token);
   try {
     const response = await fetch(apiUrl);
     const data = await response.json();
@@ -89,14 +90,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   if(!settings)
   {
   try{
-  await browser.storage.local.set({ settings: { checkInterval: 10, checkHistory: 5  }  });
+  await browser.storage.local.set({ settings: { checkInterval: 10, checkHistory: 5, tgToken:'', tgId: ''  }  });
   } catch (error) {
   console.error('Ошибка сохранения настроек history:', error);
   }
   }
+  console.log('tg '+tgToken.value);
+  
   checkIntervalInput.value = settings?.checkInterval || 10;
   checkHistoryInput.value = settings?.checkHistory || 5;
-  tgToken.value = settings?.tgToken;
+  tgToken.value = settings?.tgToken || '';
   if(tgToken.value != '')
     tgId.value = await findTelegramChatId(tgToken.value);
   else
@@ -153,11 +156,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       itemsContainer.innerHTML = '';
 
       if (!Object.keys(items).length) {
+//        const element = document.getElementById('items');
+//        element.textContent = '<div class="empty">Нет отслеживаемых товаров</div>';
+//        document.body.appendChild(element);
         itemsContainer.innerHTML = '<div class="empty">Нет отслеживаемых товаров</div>';
         return;
       }
-
-      itemsContainer.innerHTML = await Promise.all(
+//      const element = document.getElementById('items');
+//      element.textContent = await Promise.all(
+        itemsContainer.innerHTML = await Promise.all(
         Object.entries(items).map(async ([id, data]) => {
           try {
           //TIME not used
@@ -200,6 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         })
       ).then(html => html.join(''));
+//      document.body.appendChild(element);
 
       // Обработчики удаления
       document.querySelectorAll('.delete-btn').forEach(btn => {

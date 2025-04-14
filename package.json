@@ -1,0 +1,12 @@
+{ 
+	"name": "seetoprice",
+	"author": "oditynet",
+	"description": " Look for a price at the vceinstrumenti.ru site",
+	"license": "Apache-2.0",
+	"main": "background.js",
+	"version": "1.2.1.2",
+	"title": "SeetoPrice",
+        "id": "oditynet@seetoprice",
+        "homepage":"https://github.com/oditynet/seetoprice",
+	"icon":{"48":"icons/icon48.png"}
+}
