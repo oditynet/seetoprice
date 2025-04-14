@@ -287,7 +287,7 @@ browser.runtime.onMessage.addListener((message) => {
   }
 });
 // Запускаем проверку каждые 10 минут
-browser.alarms.create("priceCheck", { periodInMinutes: 5 }) // ТОЛЬКО для дебага теперь
+browser.alarms.create("priceCheck", { periodInMinutes: 10 }) // ТОЛЬКО для дебага теперь
 browser.alarms.onAlarm.addListener(checkPrices)
 
 // Обработчик ошибок
