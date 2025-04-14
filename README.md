@@ -11,7 +11,9 @@
 [![][github-license-shield]][github-license-shield]<br/>
 
 Addon for firefox !!! (https://addons.mozilla.org/firefox/downloads/file/4472104/d15151e3563243ae9309-1.1.1.xpi old version) 
+
 https://addons.mozilla.org/ru/firefox/addon/seetoprice/
+
 
 <a name="readme-left"></a>
 <div align="left">
@@ -48,9 +50,6 @@ https://addons.mozilla.org/ru/firefox/addon/seetoprice/
 # Внимание
 
 WARNING: Яндекс.маркет не поддерживается,так как они используют "антибот"
-
-WARNING: Wildberries не поддерживает получение актуальной цены. Истории у вас не будет, но сам товар вы можете поместить в список без уведомления о смены цены.
-
 
 Для сборки:
 
