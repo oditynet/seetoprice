@@ -25,6 +25,6 @@
   "icons": {
     "48": "icons/icon48.png"
   },
-  //"license": "Apache-2.0",
-  "browser_specific_settings": {"gecko": {"id": "{c2b63b8e-39c1-4fac-8272-0614f1f0152e}"}}
+  "license": "GPL-2.0",
+  "browser_specific_settings": {"gecko": {"id": "oditynet@seetoprice"}}
 }
