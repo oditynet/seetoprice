@@ -15,7 +15,7 @@ Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4472104/d15
 <a name="readme-left"></a>
 <div align="left">
 
-Плагин для firefox браузера для слежения за динамикой цен на сайтах www.vseinstrumenti.ru,  www.ozon.ru, www.wildberries.ru,  www.avito.ru (Всеинструменты, Озон, Вальберис, Авито только с версии 1.2). 
+Плагин для firefox браузера для слежения за динамикой цен на сайтах www.vseinstrumenti.ru,  www.ozon.ru, www.wildberries.ru,  www.avito.ru (Всеинструменты, Озон, (Вальберис, Авито с версии 1.2) ). 
 
 # Инструкция пользования 
 
