@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "seetoprice-dev",
+  "name": "seetoprice",
   "version": "1.2.1.5",
   "permissions": [
     "contextMenus",
