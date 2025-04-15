@@ -14,6 +14,8 @@ Addon for firefox !!! (https://addons.mozilla.org/firefox/downloads/file/4472104
 
 https://addons.mozilla.org/ru/firefox/addon/seetoprice/
 
+Addon for Chrome (I am not have a 5$)
+
 
 <a name="readme-left"></a>
 <div align="left">
@@ -29,7 +31,7 @@ https://addons.mozilla.org/ru/firefox/addon/seetoprice/
 
 # Change:
 
-В версии 1.2.1.5: Устранена проблема с перелистыванием в начало страницы
+В версии 1.2.1.5: Устранена проблема с перелистыванием в начало страницы, а в версии chrome пришлось удалить поддержку telegram потому что там запрещены прямые обращения к серверу, а настроить CORS я не осилил пока.
 
 В версии 1.2.1.4: Устранена XSS-уязвимостей и смена лицензии на GPL 3.0
 
