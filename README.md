@@ -10,12 +10,15 @@
 [![][github-stars-shield]][github-stars-link]
 [![][github-license-shield]][github-license-shield]<br/>
 
-Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4472104/d15151e3563243ae9309-1.1.1.xpi)
+Addon for firefox !!! (https://addons.mozilla.org/firefox/downloads/file/4472104/d15151e3563243ae9309-1.1.1.xpi old version) 
+
+https://addons.mozilla.org/ru/firefox/addon/seetoprice/
+
 
 <a name="readme-left"></a>
 <div align="left">
 
-Плагин для firefox браузера для слежения за динамикой цен на сайтах www.vseinstrumenti.ru,  www.ozon.ru, www.wildberries.ru,  www.avito.ru (Всеинструменты, Озон, Вальберис, Авито). 
+Плагин для firefox браузера для слежения за динамикой цен на сайтах www.vseinstrumenti.ru,  www.ozon.ru, www.wildberries.ru,  www.avito.ru (Всеинструменты, Озон, (Вальберис, Авито с версии 1.2) ). 
 
 # Инструкция пользования 
 
@@ -47,9 +50,6 @@ Addon for firefox (https://addons.mozilla.org/firefox/downloads/file/4472104/d15
 # Внимание
 
 WARNING: Яндекс.маркет не поддерживается,так как они используют "антибот"
-
-WARNING: Wildberries не поддерживает получение актуальной цены. Истории у вас не будет, но сам товар вы можете поместить в список без уведомления о смены цены.
-
 
 Для сборки:
 
