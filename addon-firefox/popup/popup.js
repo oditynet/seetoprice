@@ -1,5 +1,17 @@
 // popup.js
 
+const escapeHTML = (str) => {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[&<>"']/g, 
+    tag => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[tag] || tag));
+};
+
 async function findTelegramChatId(token, expectedMessage = '/start') {
   const apiUrl = `https://api.telegram.org/bot${token}/getUpdates`;
   if (token == '' || token == null || token == undefined) return '';
@@ -148,85 +160,143 @@ document.addEventListener('DOMContentLoaded', async () => {
   adjustPopupHeight();
   
   
-  
   const renderItems = async () => {
-    try {
-      const items = await browser.storage.local.get();
-      let t_h;
-      itemsContainer.innerHTML = '';
-
-      if (!Object.keys(items).length) {
-//        const element = document.getElementById('items');
-//        element.textContent = '<div class="empty">Нет отслеживаемых товаров</div>';
-//        document.body.appendChild(element);
-        itemsContainer.innerHTML = '<div class="empty">Нет отслеживаемых товаров</div>';
-        return;
-      }
-//      const element = document.getElementById('items');
-//      element.textContent = await Promise.all(
-        itemsContainer.innerHTML = await Promise.all(
-        Object.entries(items).map(async ([id, data]) => {
-          try {
-          //TIME not used
-           if (id === "settings")
-           {
-                t_h=data.checkHistory;
-        	return ;
-            }
-            const productName = getProductNameFromUrl(data.url);
-            return `
-            <div class="item ${data.hasNewChange ? 'highlight' : ''}" data-id="${id}">
-  <div class="item">
-    <a href="${data.url}" class="product-link" target="_blank">${productName}</a>
-    <div class="price-row">
-      <span class="price-label">Исходная цена:</span>
-      <span class="price-value">${data.originalPrice || 'N/A'}</span>
-    </div>
-    <div class="price-row">
-      <span class="price-label">Текущая цена:</span>
-      <span class="price-value">${data.currentPrice || 'N/A'}</span>
-    </div>
-    <div class="history">
-      <div class="history-title">История изменений:</div>
-      <ul class="history-list">
-        ${(data.priceHistory || []).slice().reverse().slice(0, t_h ?? 5).map(entry => `
-          <li class="history-item">
-            <span class="history-time">${new Date(entry.timestamp).toLocaleString()}</span>
-            <span class="history-price">${entry.price}</span>
-          </li>
-        `).join('')}
-      </ul>
-    </div>
-    <button class="delete-btn" data-id="${id}"><img src="../icons/del.png" alt="Удалить"></button>
-  </div>
-  </div>
-`;            
-          } catch (e) {
-            console.error('Error rendering item:', e);
-            return '';
-          }
-        })
-      ).then(html => html.join(''));
-//      document.body.appendChild(element);
-
-      // Обработчики удаления
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          await browser.storage.local.remove(btn.dataset.id);
-          await renderItems();
-        });
-      });
-
-    } catch (error) {
-      console.error('Ошибка:', error);
-      itemsContainer.innerHTML = `
-        <div class="error">
-          Ошибка загрузки списка<br>
-          ${error.message}
-        </div>
-      `;
+  const itemsContainer = document.getElementById('items');
+  
+  try {
+    // Очистка контейнера
+    while (itemsContainer.firstChild) {
+      itemsContainer.removeChild(itemsContainer.firstChild);
     }
-  };
+
+    const items = await browser.storage.local.get();
+    let historyLimit = 5;
+
+    // Обработка настроек
+    if (items.settings) {
+      historyLimit = items.settings.checkHistory || 5;
+    }
+
+    // Создаем фрагмент для эффективного добавления элементов
+    const fragment = document.createDocumentFragment();
+
+    // Перебор всех элементов
+    for (const [id, data] of Object.entries(items)) {
+      try {
+        if (id === 'settings') {
+          historyLimit = data.checkHistory || 5;
+          continue;
+        }
+
+        // Создаем основные элементы
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `item${data.hasNewChange ? ' highlight' : ''}`;
+        itemDiv.dataset.id = id;
+
+        // Ссылка на товар
+        const link = document.createElement('a');
+        link.className = 'product-link';
+        link.href = escapeHTML(data.url);
+        link.target = '_blank';
+        link.textContent = escapeHTML(getProductNameFromUrl(data.url));
+        
+        // Ценовые блоки
+        const createPriceRow = (label, price) => {
+          const row = document.createElement('div');
+          row.className = 'price-row';
+          
+          const labelSpan = document.createElement('span');
+          labelSpan.className = 'price-label';
+          labelSpan.textContent = label;
+          
+          const valueSpan = document.createElement('span');
+          valueSpan.className = 'price-value';
+          valueSpan.textContent = escapeHTML(price || 'N/A');
+          
+          row.append(labelSpan, valueSpan);
+          return row;
+        };
+
+        // История изменений
+        const historySection = document.createElement('div');
+        historySection.className = 'history';
+        
+        const historyTitle = document.createElement('div');
+        historyTitle.className = 'history-title';
+        historyTitle.textContent = 'История изменений';
+        
+        const historyList = document.createElement('ul');
+        historyList.className = 'history-list';
+
+        // Добавляем элементы истории
+        (data.priceHistory || []).slice().reverse().slice(0, historyLimit).forEach(entry => {
+          const li = document.createElement('li');
+          li.className = 'history-item';
+          
+          const timeSpan = document.createElement('span');
+          timeSpan.className = 'history-time';
+          timeSpan.textContent = new Date(entry.timestamp).toLocaleString();
+          
+          const priceSpan = document.createElement('span');
+          priceSpan.className = 'history-price';
+          priceSpan.textContent = escapeHTML(entry.price);
+          
+          li.append(timeSpan, priceSpan);
+          historyList.appendChild(li);
+        });
+
+        // Кнопка удаления
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.dataset.id = id;
+        
+        const deleteIcon = document.createElement('img');
+        deleteIcon.src = '../icons/del.png';
+        deleteIcon.alt = 'Удалить';
+        deleteBtn.appendChild(deleteIcon);
+
+        // Собираем всю структуру
+        itemDiv.append(
+          link,
+          createPriceRow('Исходная цена:', data.originalPrice),
+          createPriceRow('Текущая цена:', data.currentPrice),
+          historySection
+        );
+        historySection.append(historyTitle, historyList);
+        itemDiv.appendChild(deleteBtn);
+
+        fragment.appendChild(itemDiv);
+      } catch (e) {
+        console.error('Error rendering item:', e);
+      }
+    }
+
+    // Если нет элементов
+    if (fragment.childElementCount === 0) {
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'empty';
+      emptyDiv.textContent = 'Нет отслеживаемых товаров';
+      fragment.appendChild(emptyDiv);
+    }
+
+    itemsContainer.appendChild(fragment);
+
+    // Обработчики удаления
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await browser.storage.local.remove(btn.dataset.id);
+        await renderItems();
+      });
+    });
+
+  } catch (error) {
+    console.error('Ошибка:', error);
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error';
+    errorDiv.textContent = `Ошибка загрузки: ${error.message}`;
+    itemsContainer.appendChild(errorDiv);
+  }
+};
 
   await renderItems();  
   

@@ -169,7 +169,7 @@ async function checkPrices() {
             `${priceParts[0]}`.replace(/[^\d]/g, '').trim()+' ₽';
         }
         //console.log("item.prev= "+item.previousPrice+" item.cur="+item.currentPrice +" fin="+finalPrice);
-        if (finalPrice && finalPrice === item.currentPrice) {
+        if (finalPrice && finalPrice !== item.currentPrice) {
           await updatePrice(itemId, finalPrice, priceData.previousPrice,historylen);
           sendPriceAlert(item, finalPrice,tgToken,tgId);
         }
@@ -208,6 +208,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     priceHistory: [] // Инициализируем пустую историю
   }
   });
+
     const notificationId = await browser.notifications.create({
       type: "basic",
       title: "Начато отслеживание",
@@ -286,7 +287,7 @@ browser.runtime.onMessage.addListener((message) => {
   }
 });
 // Запускаем проверку каждые 10 минут
-browser.alarms.create("priceCheck", { periodInMinutes: 0.3 }) // ТОЛЬКО для дебага теперь
+browser.alarms.create("priceCheck", { periodInMinutes: 10 }) // ТОЛЬКО для дебага теперь
 browser.alarms.onAlarm.addListener(checkPrices)
 
 // Обработчик ошибок

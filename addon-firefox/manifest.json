@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "seetoprice",
-  "version": "1.2.1.5",
+  "version": "1.2.1.6",
   "permissions": [
     "contextMenus",
     "storage",
@@ -11,13 +11,21 @@
     "<all_urls>"
   ],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["content.js"],
-    "run_at": "document_end"
-  }],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
   "browser_action": {
     "default_icon": "icons/icon48.png",
     "default_popup": "popup/popup.html"
@@ -25,6 +33,10 @@
   "icons": {
     "48": "icons/icon48.png"
   },
-  //"license": "GPL-3.0",
-  "browser_specific_settings": {"gecko": {"id": "{51c0848e-9d21-4587-9f88-c14eacd5ff9a}"}}
+  "license": "GPL-3.0",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "oditynet@seetoprice"
+    }
+  }
 }
