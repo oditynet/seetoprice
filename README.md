@@ -11,7 +11,7 @@
 [![][github-stars-shield]][github-stars-link]
 [![][github-license-shield]][github-license-shield]<br/>
 
-Addon for firefox !!! (https://addons.mozilla.org/firefox/downloads/file/4472104/d15151e3563243ae9309-1.1.1.xpi old version) 
+Addon for firefox !!! https://addons.mozilla.org/firefox/downloads/file/4480472/seetoprice-1.2.1.6.xpi
 https://addons.mozilla.org/ru/firefox/addon/seetoprice/
 
 
