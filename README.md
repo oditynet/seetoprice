@@ -10,12 +10,10 @@
 [![][github-stars-shield]][github-stars-link]
 [![][github-license-shield]][github-license-shield]<br/>
 
-Addon for firefox !!! https://addons.mozilla.org/firefox/downloads/file/4480472/seetoprice-1.2.1.6.xpi
+Addon for firefox !!! https://addons.mozilla.org/firefox/downloads/file/4617367/d15151e3563243ae9309-1.2.1.7.zip
 https://addons.mozilla.org/ru/firefox/addon/seetoprice/
 
-
 Addon for Chrome (I am not have a 5$)
-
 
 <a name="readme-left"></a>
 <div align="left">
@@ -30,6 +28,11 @@ Addon for Chrome (I am not have a 5$)
 4) Скачайте готовый аддон из шапки данного руководства
 
 # Change:
+В версии 1.2.1.7 добавлено:
+- ozon, wb - добавлена поддержка всех языков.
+- устранена ошибка обновления цен на wb ,т.к. разработчики данной платформы стараются скрыть цену от аддона.
+- сортировка цен в аддоне по сайтам
+
 В версии 1.2.1.6: Устарены все недочеты AMO и XSS-уязвимости для firefox.
 
 В версии 1.2.1.5: Устранена проблема с перелистыванием в начало страницы, а в версии chrome пришлось удалить поддержку telegram потому что там запрещены прямые обращения к серверу, а настроить CORS я не осилил пока.
