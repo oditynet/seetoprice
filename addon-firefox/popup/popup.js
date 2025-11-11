@@ -67,6 +67,14 @@ function getProductNameFromUrl(url) {
   }
 }
 
+// Функция для определения порядка сортировки по сайтам
+function getSiteOrder(url) {
+  if (url.includes('ozon.ru')) return 1;
+  if (url.includes('wildberries.ru')) return 2;
+  if (url.includes('vseinstrumenti.ru')) return 3;
+  return 4; // Все остальные сайты
+}
+
 browser.runtime.onMessage.addListener((message) => {
   if (message.action === "updateInterval") {
     browser.alarms.create("priceCheck", {
@@ -180,14 +188,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Создаем фрагмент для эффективного добавления элементов
     const fragment = document.createDocumentFragment();
 
-    // Перебор всех элементов
-    for (const [id, data] of Object.entries(items)) {
-      try {
-        if (id === 'settings') {
-          historyLimit = data.checkHistory || 5;
-          continue;
-        }
+    // Сортируем элементы по сайтам
+    const sortedItems = Object.entries(items)
+      .filter(([id]) => id !== 'settings')
+      .sort(([idA, dataA], [idB, dataB]) => {
+        const orderA = getSiteOrder(dataA.url);
+        const orderB = getSiteOrder(dataB.url);
+        return orderA - orderB;
+      });
 
+    // Перебор всех элементов
+    for (const [id, data] of sortedItems) {
+      try {
         // Создаем основные элементы
         const itemDiv = document.createElement('div');
         itemDiv.className = `item${data.hasNewChange ? ' highlight' : ''}`;
@@ -319,11 +331,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                   hasNewChange: false
                 }
               });
-              await updateItem(id); 
               item.classList.remove('highlight');
-              
-              // Обновляем список после изменения
-             // await renderItems();
             }
           } catch (e) {
             console.error('Update error:', e);
