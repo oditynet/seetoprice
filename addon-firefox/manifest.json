@@ -1,14 +1,16 @@
 {
   "manifest_version": 2,
   "name": "seetoprice",
-  "version": "1.2.1.6",
+  "version": "1.2.1.7",
   "permissions": [
     "contextMenus",
     "storage",
     "notifications",
     "alarms",
     "tabs",
-    "<all_urls>"
+    "<all_urls>",
+    "webRequest",
+    "webRequestBlocking"
   ],
   "background": {
     "scripts": [
