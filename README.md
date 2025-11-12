@@ -13,7 +13,7 @@
 Addon for firefox !!! https://addons.mozilla.org/firefox/downloads/file/4617367/d15151e3563243ae9309-1.2.1.7.zip
 https://addons.mozilla.org/ru/firefox/addon/seetoprice/
 
-Addon for Chrome (I am not have a 5$)
+Addon for Chrome (I not have a 5$)
 
 <a name="readme-left"></a>
 <div align="left">
