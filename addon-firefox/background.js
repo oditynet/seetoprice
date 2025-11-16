@@ -15,8 +15,8 @@ function detectCurrency(priceText) {
   if (priceText.includes('$') || priceText.includes('USD')) return 'USD';
   if (priceText.includes('€') || priceText.includes('EUR')) return 'EUR';
   if (priceText.includes('֏') || priceText.includes('драм')) return 'AMD';
-  if (priceText.includes('сом')) return 'KGS';
-  if (priceText.includes('сум')) return 'UZS';
+  if (priceText.includes('сом') || priceText.includes('с')) return 'KGS';
+  if (priceText.includes('сум') || priceText.includes('UZS')) return 'UZS';
   if (priceText.includes('с.')) return 'TJS';
   if (priceText.includes('Kč') || priceText.includes('кр')) return 'CZK';
   if (priceText.includes('zł') || priceText.includes('зл')) return 'PLN';
@@ -25,7 +25,9 @@ function detectCurrency(priceText) {
   if (priceText.includes('Ft') || priceText.includes('фт')) return 'HUF';
   if (priceText.includes('kr') || priceText.includes('кр')) return 'SEK';
   if (priceText.includes('CHF') || priceText.includes('фр')) return 'CHF';
-  
+  if (priceText.includes('₪')) return 'ILS';
+  if (priceText.includes('₼')) return 'AZN';
+  if (priceText.includes('₾')) return 'GEL';
   return 'RUB';
 }
 
@@ -37,8 +39,8 @@ function getCurrencySymbol(currency) {
     'USD': '$',
     'EUR': '€',
     'AMD': '֏',
-    'KGS': 'сом',
-    'UZS': 'сум',
+    'KGS': 'с',
+    'UZS': 'UZS',
     'TJS': 'с.',
     'CZK': 'Kč',
     'PLN': 'zł',
@@ -46,7 +48,10 @@ function getCurrencySymbol(currency) {
     'BGN': 'лв',
     'HUF': 'Ft',
     'SEK': 'kr',
-    'CHF': 'CHF'
+    'CHF': 'CHF',
+    'ILS': '₪',
+    'AZN': '₼',
+    'GEL': '₾'
   };
   return symbols[currency] || '₽';
 }
