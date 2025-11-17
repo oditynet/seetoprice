@@ -173,6 +173,114 @@ function parseVseinstrumentiPrice(document) {
   }
 }
 
+function parseLemanaproPrice(document) {
+  try {
+    // Основной селектор для цены на lemanapro.ru
+    const priceElement = document.querySelector('.product-price__current, .price, .product-card-price');
+    
+    let currentPrice = null;
+    
+    if (priceElement) {
+      const priceText = priceElement.textContent || priceElement.innerText;
+      // Ищем цену в формате "20 790₽/шт." - берем часть до "/"
+      const priceMatch = priceText.match(/([\d\s,]+)₽/);
+      if (priceMatch) {
+        currentPrice = normalizePrice(priceMatch[1]);
+      } else {
+        // Альтернативный вариант - просто нормализуем весь текст
+        currentPrice = normalizePrice(priceText);
+      }
+    }
+
+    return {
+      price: currentPrice,
+      currency: 'RUB'
+    };
+  } catch (e) {
+    console.error('Lemanapro parse error:', e);
+    return null;
+  }
+}
+
+function parsePetrovichPrice(document) {
+  try {
+    // Для petrovich.ru - ищем основную цену (первую цену с рублями)
+    const priceElements = document.querySelectorAll('.price, .product-price, [class*="price"]');
+    
+    let currentPrice = null;
+    
+    for (const element of priceElements) {
+      const priceText = element.textContent || element.innerText;
+      
+      // Ищем формат "5 040 ₽" или "453 ₽"
+      if (priceText.includes('₽') && /\d/.test(priceText)) {
+        // Берем первую найденную цену с рублями
+        const priceMatch = priceText.match(/([\d\s,]+)₽/);
+        if (priceMatch) {
+          currentPrice = normalizePrice(priceMatch[1]);
+          break;
+        }
+      }
+    }
+
+    // Если не нашли в основном формате, пробуем найти по классам
+    if (!currentPrice) {
+      const cardPriceElement = document.querySelector('.price-card, .product-card-price');
+      if (cardPriceElement) {
+        const priceText = cardPriceElement.textContent || cardPriceElement.innerText;
+        currentPrice = normalizePrice(priceText);
+      }
+    }
+
+    return {
+      price: currentPrice,
+      currency: 'RUB'
+    };
+  } catch (e) {
+    console.error('Petrovich parse error:', e);
+    return null;
+  }
+}
+
+function parseAutoRuPrice(document) {
+  try {
+    // Для auto.ru - ищем цену в формате "2 350 000 ₽"
+    const priceSelectors = [
+      '.OfferPriceCaption__price', // Основной селектор для цены
+      '.OfferPrice__price', // Альтернативный селектор
+      '[class*="price"]', // Любой элемент с классом содержащим price
+      '.CardPrice' // Еще один возможный селектор
+    ];
+    
+    let currentPrice = null;
+    
+    for (const selector of priceSelectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const element of elements) {
+        const priceText = element.textContent || element.innerText;
+        
+        // Ищем формат "2 350 000 ₽" с символом рубля
+        if (priceText.includes('₽') && /\d/.test(priceText)) {
+          const priceMatch = priceText.match(/([\d\s,]+)₽/);
+          if (priceMatch) {
+            currentPrice = normalizePrice(priceMatch[1]);
+            break;
+          }
+        }
+      }
+      if (currentPrice) break;
+    }
+
+    return {
+      price: currentPrice,
+      currency: 'RUB'
+    };
+  } catch (e) {
+    console.error('Auto.ru parse error:', e);
+    return null;
+  }
+}
+
 async function getWilbPrice(document) {
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
@@ -315,6 +423,42 @@ async function checkPrices() {
           }
           await browser.tabs.remove(tab.id);
           continue;
+          
+        } else if (url.hostname.includes('lemanapro.ru')) {
+          const [result] = await browser.tabs.executeScript(tab.id, {
+            code: `(${parseLemanaproPrice.toString()})(document)`
+          });
+          priceData = result;
+          
+          if (priceData && priceData.currency !== item.currency) {
+            //console.log(`Пропускаем Lemanapro: валюта товара (${priceData.currency}) не совпадает с сохраненной (${item.currency})`);
+            await browser.tabs.remove(tab.id);
+            continue;
+          }
+          
+        } else if (url.hostname.includes('petrovich.ru')) {
+          const [result] = await browser.tabs.executeScript(tab.id, {
+            code: `(${parsePetrovichPrice.toString()})(document)`
+          });
+          priceData = result;
+          
+          if (priceData && priceData.currency !== item.currency) {
+            //console.log(`Пропускаем Petrovich: валюта товара (${priceData.currency}) не совпадает с сохраненной (${item.currency})`);
+            await browser.tabs.remove(tab.id);
+            continue;
+          }
+          
+        } else if (url.hostname.includes('auto.ru')) {
+          const [result] = await browser.tabs.executeScript(tab.id, {
+            code: `(${parseAutoRuPrice.toString()})(document)`
+          });
+          priceData = result;
+          
+          if (priceData && priceData.currency !== item.currency) {
+            //console.log(`Пропускаем Auto.ru: валюта товара (${priceData.currency}) не совпадает с сохраненной (${item.currency})`);
+            await browser.tabs.remove(tab.id);
+            continue;
+          }
           
         } else {
           const [currentPrice] = await browser.tabs.executeScript(tab.id, {

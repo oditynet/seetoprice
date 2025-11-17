@@ -1,10 +1,10 @@
 { 
 	"name": "seetoprice",
 	"author": "oditynet",
-	"description": " Look for a price at the vceinstrumenti.ru site",
+	"description": "Follow to a prices at the sites: Ozon, wildberries, vseinstrumenti, auto.ru, lemanapro.ru, petrovich.ru",
 	"license": "GPL-3.0",
 	"main": "background.js",
-	"version": "1.2.1.6",
+	"version": "1.2.2",
 	"title": "SeetoPrice",
         "id": "oditynet@seetoprice",
         "homepage":"https://github.com/oditynet/seetoprice",

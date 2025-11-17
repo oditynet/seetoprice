@@ -5,9 +5,9 @@
           <em:type>2</em:type>
           <em:bootstrap>true</em:bootstrap>
           <em:unpack>false</em:unpack>
-          <em:version>1.2.1.6</em:version>
+          <em:version>1.2.2</em:version>
           <em:name>SeetoPrice</em:name>
-          <em:description> Look for a price at the vceinstrumenti.ru site</em:description>
+          <em:description>Follow to a prices at the sites: Ozon, wildberries, vseinstrumenti, auto.ru, lemanapro.ru, petrovich.ru</em:description>
           <em:creator>oditynet</em:creator>
           <em:homepageURL>https://github.com/oditynet/seetoprice</em:homepageURL>
           <em:iconURL>resource://oditynet-at-seetoprice/icons/icon48.png</em:iconURL>

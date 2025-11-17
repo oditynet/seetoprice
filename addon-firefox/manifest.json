@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "seetoprice",
-  "version": "1.2.1.7",
+  "version": "1.2.2",
   "permissions": [
     "contextMenus",
     "storage",
@@ -38,7 +38,7 @@
   "license": "GPL-3.0",
   "browser_specific_settings": {
     "gecko": {
-      "id": "oditynet@seetoprice"
+      "id": "{51c0848e-9d21-4587-9f88-c14eacd5ff9a}"
     }
   }
 }
