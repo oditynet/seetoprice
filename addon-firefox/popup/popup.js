@@ -63,6 +63,72 @@ function getSiteOrder(url) {
 
   return siteOrder[siteName] || 7;
 }
+
+// Загрузка и применение темы при открытии аддона
+/*async function loadTheme() {
+  try {
+    const { settings } = await browser.storage.local.get('settings');
+
+    console.log('Настройки из хранилища:', settings); // ОТЛАДКА
+    
+    const theme = settings?.theme || 'light';
+    console.log('Применяем тему:', theme); // ОТЛАДКА
+    
+    // Устанавливаем значение в селект
+    const themeSelect = document.getElementById('theme');
+    if (themeSelect) {
+      themeSelect.value = theme;
+      console.log('Установлено значение селекта:', themeSelect.value); // ОТЛАДКА
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки темы:', error);
+  }
+}*/
+async function loadTheme() {
+  try {
+    const { settings } = await browser.storage.local.get('settings');
+    const theme = settings?.theme || 'light';
+    
+    // Применяем тему к документу
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    // Ждем полной загрузки DOM
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        const themeSelect = document.getElementById('theme');
+        if (themeSelect) {
+          themeSelect.value = theme;
+        }
+      });
+    } else {
+      // DOM уже загружен
+      const themeSelect = document.getElementById('theme');
+      if (themeSelect) {
+        themeSelect.value = theme;
+      }
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки темы:', error);
+  }
+}
+
+// Сохранение темы
+async function saveTheme(theme) {
+  try {
+    const { settings } = await browser.storage.local.get('settings');
+    await browser.storage.local.set({
+      settings: {
+        ...settings,
+        theme: theme
+      }
+    });
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch (error) {
+    console.error('Ошибка сохранения темы:', error);
+  }
+}
+
+
 async function findTelegramChatId(token, expectedMessage = '/start') {
   const apiUrl = `https://api.telegram.org/bot${token}/getUpdates`;
   if (token == '' || token == null || token == undefined) return '';
@@ -187,15 +253,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const checkHistoryInput = document.getElementById('checkHistory');
   const tgToken = document.getElementById('tgToken') ;
   const tgId = document.getElementById('tgId');
+  const themeSelect = document.getElementById('theme');
+  
+  // Загружаем тему при открытии
+  await loadTheme();
   
   const body = document.body;
-
+  
   // Загрузка сохраненных настроек
   const { settings } = await browser.storage.local.get('settings');
   if(!settings)
   {
   try{
-  await browser.storage.local.set({ settings: { checkInterval: 10, checkHistory: 5, tgToken:'', tgId: ''  }  });
+  await browser.storage.local.set({ settings: { checkInterval: 10, checkHistory: 5, tgToken:'', tgId: '', theme: 'light'  }  });
   } catch (error) {
   console.error('Ошибка сохранения настроек history:', error);
   }
@@ -205,25 +275,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   checkIntervalInput.value = settings?.checkInterval || 10;
   checkHistoryInput.value = settings?.checkHistory || 5;
   tgToken.value = settings?.tgToken || '';
-  if(tgToken.value != '')
+  themeSelect.value = settings?.theme || 'light';
+  
+/*  if(tgToken.value != '')
     tgId.value = await findTelegramChatId(tgToken.value);
   else
     tgId.value = '';
+*/
+
+if(tgToken.value && tgToken.value.trim() !== '') {
+    try {
+        tgId.value = await findTelegramChatId(tgToken.value);
+    } catch (error) {
+        console.error('Ошибка получения chat ID:', error);
+        tgId.value = 'Ошибка: ' + error.message;
+    }
+} else {
+    tgId.value = '';
+}
 
   // Обработчик кнопки настроек
   settingsButton.addEventListener('click', () => {
+  
     settingsContainer.classList.toggle('visible');
     adjustPopupHeight();
   });
 
   // Обработчик сохранения
   saveButton.addEventListener('click', async () => {
+  
+    const themeSelect = document.getElementById('theme').value;
+    await saveTheme(themeSelect);
+    
     await browser.storage.local.set({
       settings: {
+      
         checkInterval: parseInt(checkIntervalInput.value) || 10,
         checkHistory: parseInt(checkHistoryInput.value) || 5,
         tgToken: tgToken.value || '',
-        tgId: await findTelegramChatId(tgToken.value) || ''
+        tgId: await findTelegramChatId(tgToken.value) || '',
+        theme: themeSelect || 'light',
       }
     });
     
@@ -233,7 +324,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       interval: parseInt(checkIntervalInput.value),
       history: parseInt(checkHistoryInput.value),
       tgToken: tgToken.value,
-      tgId: tgToken ? tgId.value : ''
+      tgId: tgToken ? tgId.value : '',
+      theme: themeSelect
     });
     
     settingsContainer.classList.remove('visible');
