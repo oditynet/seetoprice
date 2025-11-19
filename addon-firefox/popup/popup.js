@@ -65,25 +65,6 @@ function getSiteOrder(url) {
 }
 
 // Загрузка и применение темы при открытии аддона
-/*async function loadTheme() {
-  try {
-    const { settings } = await browser.storage.local.get('settings');
-
-    console.log('Настройки из хранилища:', settings); // ОТЛАДКА
-    
-    const theme = settings?.theme || 'light';
-    console.log('Применяем тему:', theme); // ОТЛАДКА
-    
-    // Устанавливаем значение в селект
-    const themeSelect = document.getElementById('theme');
-    if (themeSelect) {
-      themeSelect.value = theme;
-      console.log('Установлено значение селекта:', themeSelect.value); // ОТЛАДКА
-    }
-  } catch (error) {
-    console.error('Ошибка загрузки темы:', error);
-  }
-}*/
 async function loadTheme() {
   try {
     const { settings } = await browser.storage.local.get('settings');
@@ -128,7 +109,6 @@ async function saveTheme(theme) {
   }
 }
 
-
 async function findTelegramChatId(token, expectedMessage = '/start') {
   const apiUrl = `https://api.telegram.org/bot${token}/getUpdates`;
   if (token == '' || token == null || token == undefined) return '';
@@ -157,32 +137,6 @@ async function findTelegramChatId(token, expectedMessage = '/start') {
     throw error;
   }
 }
-
-/*function getProductNameFromUrl(url) {
-  try {
-    const urlObj = new URL(url);
-    const pathParts = urlObj.pathname.split('/');
-    let productPart = pathParts[2] || '';
-    if (url.includes('avito.ru')) {
-     productPart = pathParts[3] || '';
-      } 
-
-    // Сокращаем до 30 символов
-    if (productPart.length > 30) {
-      productPart = productPart.substring(0, 27) + '...';
-    }
-
-    // Декодируем URI-компоненты
-    return decodeURIComponent(productPart)
-      .replace(/%30/g, ' ') // Заменяем %30 на пробелы
-      .replace(/\s+/g, ' ')
-      .trim();
-
-  } catch (e) {
-    console.error('Error parsing product name:', e);
-    return 'Товар';
-  }
-}*/
 
 function getProductNameFromUrl(url) {
   try {
@@ -226,6 +180,105 @@ function getProductNameFromUrl(url) {
   }
 }
 
+
+// Экспорт в файл
+async function exportToFile() {
+  const items = JSON.parse(localStorage.getItem('allItems') || '{}');
+  const checkboxes = document.querySelectorAll('.export-checkbox:checked');
+  const selectedItems = {};
+  
+  checkboxes.forEach(checkbox => {
+    const id = checkbox.dataset.id;
+    if (items[id]) {
+      selectedItems[id] = items[id];
+    }
+  });
+  
+  if (Object.keys(selectedItems).length === 0) {
+    alert('Не выбрано ни одного товара для экспорта');
+    return;
+  }
+  
+  try {
+    const dataStr = JSON.stringify(selectedItems, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'seetoprice.json';
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    alert(`Экспортировано ${Object.keys(selectedItems).length} товаров`);
+    
+  } catch (error) {
+    alert('Ошибка экспорта');
+  }
+}
+
+// Импорт - открываем страницу импорта
+function importFromFile() {
+  // Открываем страницу импорта в новой вкладке
+  browser.tabs.create({
+    url: browser.runtime.getURL('import.html')
+  });
+}
+
+function selectAllItems() {
+  document.querySelectorAll('.export-checkbox').forEach(checkbox => {
+    checkbox.checked = true;
+  });
+}
+
+function deselectAllItems() {
+  document.querySelectorAll('.export-checkbox').forEach(checkbox => {
+    checkbox.checked = false;
+  });
+}
+
+// Функции для импорта/экспорта
+function renderImportExportItems(items) {
+  const container = document.getElementById('importExportItems');
+  container.innerHTML = '';
+  
+  if (Object.keys(items).filter(id => id !== 'settings').length === 0) {
+    container.innerHTML = '<div style="text-align: center; color: #667; padding: 10px;">Нет товаров для экспорта</div>';
+    return;
+  }
+  
+  Object.entries(items)
+    .filter(([id]) => id !== 'settings')
+    .forEach(([id, data]) => {
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'import-item';
+      
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = true;
+      checkbox.dataset.id = id;
+      checkbox.className = 'export-checkbox';
+      
+      const itemInfo = document.createElement('div');
+      itemInfo.className = 'import-item-info';
+      
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'import-item-name';
+      nameDiv.textContent = getProductNameFromUrl(data.url);
+      
+      const detailsDiv = document.createElement('div');
+      detailsDiv.className = 'import-item-details';
+      detailsDiv.textContent = `${data.currentPrice} • ${new URL(data.url).hostname}`;
+      
+      itemInfo.appendChild(nameDiv);
+      itemInfo.appendChild(detailsDiv);
+      
+      itemDiv.appendChild(checkbox);
+      itemDiv.appendChild(itemInfo);
+      container.appendChild(itemDiv);
+    });
+}
+
 browser.runtime.onMessage.addListener((message) => {
   if (message.action === "updateInterval") {
     browser.alarms.create("priceCheck", {
@@ -237,24 +290,29 @@ browser.runtime.onMessage.addListener((message) => {
 document.addEventListener('DOMContentLoaded', async () => {
   const itemsContainer = document.getElementById('items');
   
-  
   await browser.browserAction.setIcon({
     path: {
       "48": "../icons/icon48.png"
     }
   });
   
-  //priceChanged = true;
-  
   const settingsButton = document.getElementById('settingsButton');
+  const importExportButton = document.getElementById('importExportButton');
   const settingsContainer = document.getElementById('settingsContainer');
+  const importExportContainer = document.getElementById('importExportContainer');
   const saveButton = document.getElementById('saveSettings');
   const checkIntervalInput = document.getElementById('checkInterval');
   const checkHistoryInput = document.getElementById('checkHistory');
-  const tgToken = document.getElementById('tgToken') ;
+  const tgToken = document.getElementById('tgToken');
   const tgId = document.getElementById('tgId');
   const themeSelect = document.getElementById('theme');
   
+  // Элементы импорта/экспорта
+  const selectAllBtn = document.getElementById('selectAllBtn');
+  const deselectAllBtn = document.getElementById('deselectAllBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const importBtn = document.getElementById('importBtn');
+
   // Загружаем тему при открытии
   await loadTheme();
   
@@ -262,54 +320,84 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Загрузка сохраненных настроек
   const { settings } = await browser.storage.local.get('settings');
-  if(!settings)
-  {
-  try{
-  await browser.storage.local.set({ settings: { checkInterval: 10, checkHistory: 5, tgToken:'', tgId: '', theme: 'light'  }  });
-  } catch (error) {
-  console.error('Ошибка сохранения настроек history:', error);
+  if(!settings) {
+    try {
+      await browser.storage.local.set({ settings: { checkInterval: 10, checkHistory: 5, tgToken:'', tgId: '', theme: 'light'  }  });
+    } catch (error) {
+      console.error('Ошибка сохранения настроек history:', error);
+    }
   }
-  }
-  //console.log('tg '+tgToken.value);
   
   checkIntervalInput.value = settings?.checkInterval || 10;
   checkHistoryInput.value = settings?.checkHistory || 5;
   tgToken.value = settings?.tgToken || '';
   themeSelect.value = settings?.theme || 'light';
   
-/*  if(tgToken.value != '')
-    tgId.value = await findTelegramChatId(tgToken.value);
-  else
-    tgId.value = '';
-*/
-
-if(tgToken.value && tgToken.value.trim() !== '') {
+  if(tgToken.value && tgToken.value.trim() !== '') {
     try {
-        tgId.value = await findTelegramChatId(tgToken.value);
+      tgId.value = await findTelegramChatId(tgToken.value);
     } catch (error) {
-        console.error('Ошибка получения chat ID:', error);
-        tgId.value = 'Ошибка: ' + error.message;
+      console.error('Ошибка получения chat ID:', error);
+      tgId.value = 'Ошибка: ' + error.message;
     }
-} else {
+  } else {
     tgId.value = '';
-}
+  }
 
   // Обработчик кнопки настроек
-  settingsButton.addEventListener('click', () => {
-  
+  settingsButton.addEventListener('click', (e) => {
+    e.stopPropagation();
     settingsContainer.classList.toggle('visible');
+    if (settingsContainer.classList.contains('visible')) {
+      importExportContainer.classList.remove('visible');
+    }
     adjustPopupHeight();
   });
 
-  // Обработчик сохранения
-  saveButton.addEventListener('click', async () => {
+  // Обработчик кнопки импорта/экспорта
+  importExportButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    importExportContainer.classList.toggle('visible');
+    if (importExportContainer.classList.contains('visible')) {
+      settingsContainer.classList.remove('visible');
+      // Загружаем товары для экспорта
+      browser.storage.local.get().then(allItems => {
+        localStorage.setItem('allItems', JSON.stringify(allItems));
+        renderImportExportItems(allItems);
+      });
+    }
+    adjustPopupHeight();
+  });
+
+  // Обработчики импорта/экспорта
+  selectAllBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectAllItems();
+  });
   
+  deselectAllBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deselectAllItems();
+  });
+  
+  exportBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    exportToFile();
+  });
+  
+  importBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    importFromFile();
+  });
+
+  // Обработчик сохранения
+  saveButton.addEventListener('click', async (e) => {
+    e.stopPropagation();
     const themeSelect = document.getElementById('theme').value;
     await saveTheme(themeSelect);
     
     await browser.storage.local.set({
       settings: {
-      
         checkInterval: parseInt(checkIntervalInput.value) || 10,
         checkHistory: parseInt(checkHistoryInput.value) || 5,
         tgToken: tgToken.value || '',
@@ -336,9 +424,16 @@ if(tgToken.value && tgToken.value.trim() !== '') {
   function adjustPopupHeight() {
     const baseHeight = 450;
     const settingsHeight = settingsContainer.offsetHeight;
-    body.style.height = settingsContainer.classList.contains('visible') 
-      ? `${baseHeight + settingsHeight}px`
-      : `${baseHeight}px`;
+    const importExportHeight = importExportContainer.offsetHeight;
+    
+    let additionalHeight = 0;
+    if (settingsContainer.classList.contains('visible')) {
+      additionalHeight = settingsHeight;
+    } else if (importExportContainer.classList.contains('visible')) {
+      additionalHeight = importExportHeight;
+    }
+    
+    body.style.height = `${baseHeight + additionalHeight}px`;
   }
 
   // Инициализация высоты
@@ -504,45 +599,33 @@ if(tgToken.value && tgToken.value.trim() !== '') {
       itemsContainer.appendChild(fragment);
 
       // Обработчики удаления
-    /*  document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const scrollPosition = itemsContainer.scrollTop;
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const itemElement = btn.closest('.site-item');
+          const siteGroup = btn.closest('.site-group');
+          const itemId = btn.dataset.id;
           
-          await browser.storage.local.remove(btn.dataset.id);
-          await renderItems();
+          // Удаляем из хранилища
+          await browser.storage.local.remove(itemId);
           
-          itemsContainer.scrollTop = scrollPosition;
+          // Удаляем элемент из DOM
+          itemElement.remove();
+          
+          // Если в группе не осталось товаров, удаляем всю группу
+          if (siteGroup.querySelectorAll('.site-item').length === 0) {
+            siteGroup.remove();
+          }
+          
+          // Если вообще не осталось товаров, показываем сообщение
+          if (document.querySelectorAll('.site-item').length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'empty';
+            emptyDiv.textContent = 'Нет отслеживаемых товаров';
+            itemsContainer.appendChild(emptyDiv);
+          }
         });
       });
-      */
-      
-      
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-  btn.addEventListener('click', async (e) => {
-    const itemElement = btn.closest('.site-item');
-    const siteGroup = btn.closest('.site-group');
-    const itemId = btn.dataset.id;
-    
-    // Удаляем из хранилища
-    await browser.storage.local.remove(itemId);
-    
-    // Удаляем элемент из DOM
-    itemElement.remove();
-    
-    // Если в группе не осталось товаров, удаляем всю группу
-    if (siteGroup.querySelectorAll('.site-item').length === 0) {
-      siteGroup.remove();
-    }
-    
-    // Если вообще не осталось товаров, показываем сообщение
-    if (document.querySelectorAll('.site-item').length === 0) {
-      const emptyDiv = document.createElement('div');
-      emptyDiv.className = 'empty';
-      emptyDiv.textContent = 'Нет отслеживаемых товаров';
-      itemsContainer.appendChild(emptyDiv);
-    }
-  });
-});
 
     } catch (error) {
       console.error('Ошибка:', error);
