@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Импорт товаров - SeeToPrice</title>
+    <style>
+        body { 
+            font-family: Arial; 
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        h1 { color: #333; }
+        .file-input { margin: 20px 0; }
+        .status { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 4px;
+            line-height: 1.4;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { 
+            padding: 10px 20px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px;
+        }
+        .button-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Импорт товаров</h1>
+    <p>Выберите JSON файл для импорта:</p>
+    <input type="file" id="fileInput" accept=".json" class="file-input">
+    <div id="status"></div>
+    
+    <div class="button-container">
+        <button onclick="closeTab()">Закрыть</button>
+        <button onclick="location.reload()">Импортировать еще</button>
+    </div>
+
+    <script src="import.js"></script>
+</body>
+</html>
