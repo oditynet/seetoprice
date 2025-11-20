@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "seetoprice",
-  "version": "1.2.1.5",
+  "version": "1.2.2.2",
   "permissions": [
     "contextMenus",
     "storage",
     "notifications",
     "alarms",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -24,5 +25,9 @@
   },
   "icons": {
     "48": "icons/icon48.png"
-  }
+  },
+  "web_accessible_resources": [{
+    "resources": ["import.html", "import.js"],
+    "matches": ["<all_urls>"]
+  }]
 }
