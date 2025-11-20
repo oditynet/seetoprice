@@ -1,4 +1,4 @@
-// content.js
+// content.js для Chrome
 let lastPriceData = null;
 
 // Функция для определения валюты
@@ -54,15 +54,7 @@ function getCurrencySymbol(currency) {
 
 function normalizePrice(priceText) {
   if (!priceText) return null;
-  
-  let normalized = priceText.replace(/\s/g, '');
-  
-  const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
-  if (priceMatch) {
-    normalized = priceMatch[0];
-  }
-  
-  return normalized;
+  return priceText.replace(/[^\d]/g, '');
 }
 
 const getSelector = (el) => {
@@ -108,36 +100,49 @@ document.addEventListener('contextmenu', (e) => {
       let priceElement = null;
       let price = null;
       
-      const priceSelectors = [
-        '.-no-margin_fsyzi_50',
-        '.cztff3 > .BVPC2X',
-        '[class*="price"]',
-        '.product-price',
-        '.current-price',
-        '.product-card-price'
-      ];
+      // Ищем основную текущую цену
+      const currentPriceElement = document.querySelector('[data-qa="price-now"]');
       
-      for (const selector of priceSelectors) {
-        const element = document.querySelector(selector);
-        if (element) {
-          const text = element.textContent.trim();
-          if (text && /\d/.test(text)) {
-            priceElement = element;
-            price = text;
-            break;
+      if (currentPriceElement) {
+        const text = currentPriceElement.textContent.trim();
+        const priceMatch = text.match(/(\d+)\s*[₽$€₸]/);
+        if (priceMatch) {
+          priceElement = currentPriceElement;
+          const currency = detectCurrency(text);
+          const currencySymbol = getCurrencySymbol(currency);
+          price = priceMatch[1] + ' ' + currencySymbol;
+        }
+      }
+      
+      // Если не нашли, ищем в основном блоке
+      if (!priceElement) {
+        const mainPriceBlock = document.querySelector('.MZu-SS');
+        if (mainPriceBlock) {
+          const priceElements = mainPriceBlock.querySelectorAll('p, span');
+          for (const element of priceElements) {
+            const text = element.textContent.trim();
+            if (text.includes('₽') || text.includes('$') || text.includes('€') || text.includes('₸')) {
+              const priceMatch = text.match(/(\d+)\s*[₽$€₸]/);
+              if (priceMatch) {
+                const priceNum = parseInt(priceMatch[1]);
+                if (priceNum > 100) {
+                  priceElement = element;
+                  const currency = detectCurrency(text);
+                  const currencySymbol = getCurrencySymbol(currency);
+                  price = priceNum + ' ' + currencySymbol;
+                  break;
+                }
+              }
+            }
           }
         }
       }
       
       if (priceElement && price) {
-        const normalizedPrice = normalizePrice(price);
-        
         lastPriceData = {
           selector: getSelector(priceElement),
-          price: normalizedPrice + ' ₽'
+          price: price
         };
-        
-        console.log('Vseinstrumenti price found:', lastPriceData);
         return;
       }
     }
@@ -148,16 +153,20 @@ document.addEventListener('contextmenu', (e) => {
     const rawPrice = targetElement.textContent.trim();
     const currency = detectCurrency(rawPrice);
     const currencySymbol = getCurrencySymbol(currency);
-    const normalizedPrice = normalizePrice(rawPrice);
-
+    
+    let normalizedPrice = normalizePrice(rawPrice);
+    
     if (normalizedPrice && normalizedPrice.length > 0) {
+      const firstNumberMatch = rawPrice.match(/(\d[\d\s,]*)\s*[₽р.$€₸]/);
+      if (firstNumberMatch) {
+        normalizedPrice = firstNumberMatch[1].replace(/[^\d]/g, '');
+      }
+      
       lastPriceData = {
         selector: getSelector(targetElement),
         price: normalizedPrice + ' ' + currencySymbol
       };
-
     } else {
-      console.log('No valid price found');
       lastPriceData = null;
     }
   } catch (error) {

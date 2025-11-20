@@ -78,11 +78,54 @@
     [data-theme="compact"] .import-export-container.visible { max-height: 350px; }
     [data-theme="compact"] .import-export-items { max-height: 270px; padding: 6px; }
     [data-theme="compact"] .dev { margin-top: 5px; margin-bottom: 2px; }
+    
+.site-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 14px;
+  color: #4b5f72;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  user-select: none;
+}
+
+.site-header:hover {
+  opacity: 0.9;
+}
+
+.toggle-icon {
+  transition: transform 0.2s;
+}
+
+.site-items {
+  transition: all 0.3s ease;
+}
+
+/* Для компактной темы */
+[data-theme="compact"] .site-header {
+  padding: 6px 10px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+[data-theme="compact"] .toggle-icon {
+  font-size: 10px;
+}
+
+[data-theme="compact"] .item-count {
+  font-size: 10px;
+}    
   </style>
 </head>
 <body>
 <button class="settings-btn" id="settingsButton">⚙</button>
-<button class="import-export-btn" id="importExportButton">📤</button>
+<button class="import-export-btn" id="importExportButton">⇄</button>
 <h3 style="margin-top: 5;">Отслеживаемые товары</h3>
 
 <div class="settings-container" id="settingsContainer">

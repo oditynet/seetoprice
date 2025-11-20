@@ -1,4 +1,4 @@
-// popup.js
+// popup.js для Chrome
 
 const escapeHTML = (str) => {
   if (typeof str !== 'string') return '';
@@ -62,7 +62,8 @@ function getSiteOrder(url) {
 // Загрузка и применение темы при открытии аддона
 async function loadTheme() {
   try {
-    const { settings } = await chrome.storage.local.get('settings');
+    const result = await chrome.storage.local.get('settings');
+    const settings = result.settings;
     const theme = settings?.theme || 'light';
     
     document.documentElement.setAttribute('data-theme', theme);
@@ -88,7 +89,8 @@ async function loadTheme() {
 // Сохранение темы
 async function saveTheme(theme) {
   try {
-    const { settings } = await chrome.storage.local.get('settings');
+    const result = await chrome.storage.local.get('settings');
+    const settings = result.settings || {};
     await chrome.storage.local.set({
       settings: {
         ...settings,
@@ -98,6 +100,50 @@ async function saveTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
   } catch (error) {
     console.error('Ошибка сохранения темы:', error);
+  }
+}
+
+// Функции для работы с состоянием групп
+async function saveGroupState(groupName, isExpanded) {
+  try {
+    const result = await chrome.storage.local.get('settings');
+    const settings = result.settings || {};
+    
+    // Сохраняем состояния групп ВНУТРИ настроек
+    if (!settings.groupStates) {
+      settings.groupStates = {};
+    }
+    settings.groupStates[groupName] = isExpanded;
+    
+    await chrome.storage.local.set({ settings });
+  } catch (error) {
+    console.error('Ошибка сохранения состояния группы:', error);
+  }
+}
+
+async function loadGroupStates() {
+  try {
+    const result = await chrome.storage.local.get('settings');
+    const settings = result.settings || {};
+    return settings.groupStates || {};
+  } catch (error) {
+    console.error('Ошибка загрузки состояния групп:', error);
+    return {};
+  }
+}
+
+// Функция удаления состояния пустой группы
+async function removeGroupState(groupName) {
+  try {
+    const result = await chrome.storage.local.get('settings');
+    const settings = result.settings || {};
+    
+    if (settings.groupStates && settings.groupStates[groupName]) {
+      delete settings.groupStates[groupName];
+      await chrome.storage.local.set({ settings });
+    }
+  } catch (error) {
+    console.error('Ошибка удаления состояния группы:', error);
   }
 }
 
@@ -117,7 +163,7 @@ async function findTelegramChatId(token, expectedMessage = '/start') {
     );
 
     if (!update) {
-      alert('Отправьте боту сообщение "' + expectedMessage + '"');
+      throw new Error('Отправьте боту сообщение "' + expectedMessage + '"');
     }
 
     return update.message.chat.id;
@@ -297,10 +343,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const body = document.body;
   
   // Загрузка сохраненных настроек
-  const { settings } = await chrome.storage.local.get('settings');
+  const result = await chrome.storage.local.get('settings');
+  const settings = result.settings;
+  
   if(!settings) {
     try {
-      await chrome.storage.local.set({ settings: { checkInterval: 10, checkHistory: 5, tgToken:'', tgId: '', theme: 'light'  }  });
+      await chrome.storage.local.set({ 
+        settings: { 
+          checkInterval: 10, 
+          checkHistory: 5, 
+          tgToken:'', 
+          tgId: '', 
+          theme: 'light',
+          groupStates: {}
+        }  
+      });
     } catch (error) {
       console.error('Ошибка сохранения настроек history:', error);
     }
@@ -371,8 +428,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Обработчик сохранения
   saveButton.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const themeSelect = document.getElementById('theme').value;
-    await saveTheme(themeSelect);
+    const themeSelectValue = document.getElementById('theme').value;
+    await saveTheme(themeSelectValue);
+    
+    // Сохраняем настройки ВМЕСТЕ с состояниями групп
+    const currentResult = await chrome.storage.local.get('settings');
+    const currentSettings = currentResult.settings || {};
+    const currentGroupStates = currentSettings.groupStates || {};
     
     await chrome.storage.local.set({
       settings: {
@@ -380,7 +442,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkHistory: parseInt(checkHistoryInput.value) || 5,
         tgToken: tgToken.value || '',
         tgId: await findTelegramChatId(tgToken.value) || '',
-        theme: themeSelect || 'light',
+        theme: themeSelectValue || 'light',
+        groupStates: currentGroupStates
       }
     });
     
@@ -391,7 +454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       history: parseInt(checkHistoryInput.value),
       tgToken: tgToken.value,
       tgId: tgToken ? tgId.value : '',
-      theme: themeSelect
+      theme: themeSelectValue
     });
     
     settingsContainer.classList.remove('visible');
@@ -432,6 +495,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         historyLimit = items.settings.checkHistory || 5;
       }
 
+      // Загружаем сохраненные состояния групп
+      const groupStates = await loadGroupStates();
       const fragment = document.createDocumentFragment();
 
       // Группируем элементы по сайтам
@@ -454,18 +519,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         return orderA - orderB;
       });
 
-      // Перебор групп сайтов
+      // Перебор групп сайтов - ТОЛЬКО ГРУППЫ С ТОВАРАМИ
       for (const [siteName, siteItems] of sortedSiteGroups) {
+        // Пропускаем пустые группы
+        if (siteItems.length === 0) {
+          continue;
+        }
+
         const siteGroupDiv = document.createElement('div');
         siteGroupDiv.className = 'site-group';
         
+        // Определяем начальное состояние группы
+        const isInitiallyExpanded = groupStates[siteName] !== false;
+        
+        // Заголовок сайта с иконкой сворачивания
         const siteHeader = document.createElement('div');
         siteHeader.className = 'site-header';
-        siteHeader.textContent = siteName;
         siteHeader.style.backgroundColor = generateSiteColor(siteName);
         
+        // Иконка сворачивания/разворачивания
+        const toggleIcon = document.createElement('span');
+        toggleIcon.className = 'toggle-icon';
+        toggleIcon.textContent = isInitiallyExpanded ? '▼' : '▶';
+        toggleIcon.style.marginRight = '8px';
+        toggleIcon.style.cursor = 'pointer';
+        toggleIcon.style.fontSize = '12px';
+        
+        // Название сайта
+        const siteNameSpan = document.createElement('span');
+        siteNameSpan.textContent = siteName;
+        siteNameSpan.style.cursor = 'pointer';
+        siteNameSpan.style.flex = '1';
+        
+        // Количество товаров в группе
+        const itemCount = document.createElement('span');
+        itemCount.className = 'item-count';
+        itemCount.textContent = `(${siteItems.length})`;
+        itemCount.style.marginLeft = '8px';
+        itemCount.style.fontSize = '12px';
+        itemCount.style.opacity = '0.7';
+        
+        siteHeader.appendChild(toggleIcon);
+        siteHeader.appendChild(siteNameSpan);
+        siteHeader.appendChild(itemCount);
+        
+        // Контейнер для товаров сайта
         const siteItemsContainer = document.createElement('div');
         siteItemsContainer.className = 'site-items';
+        siteItemsContainer.style.display = isInitiallyExpanded ? 'block' : 'none';
         
         // Перебор товаров в группе
         for (const { id, data } of siteItems) {
@@ -547,6 +648,27 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         }
         
+        // Добавляем обработчик клика на заголовок
+        siteHeader.addEventListener('click', (e) => {
+          if (e.target.classList.contains('delete-btn')) return;
+          
+          const isExpanded = siteItemsContainer.style.display !== 'none';
+          const newState = !isExpanded;
+          
+          if (newState) {
+            // Разворачиваем
+            siteItemsContainer.style.display = 'block';
+            toggleIcon.textContent = '▼';
+          } else {
+            // Сворачиваем
+            siteItemsContainer.style.display = 'none';
+            toggleIcon.textContent = '▶';
+          }
+          
+          // Сохраняем состояние
+          saveGroupState(siteName, newState);
+        });
+        
         siteGroupDiv.appendChild(siteHeader);
         siteGroupDiv.appendChild(siteItemsContainer);
         fragment.appendChild(siteGroupDiv);
@@ -567,17 +689,29 @@ document.addEventListener('DOMContentLoaded', async () => {
           e.stopPropagation();
           const itemElement = btn.closest('.site-item');
           const siteGroup = btn.closest('.site-group');
+          const siteHeader = siteGroup.querySelector('.site-header');
+          const siteName = siteHeader.querySelector('span:not(.toggle-icon):not(.item-count)').textContent;
           const itemId = btn.dataset.id;
           
           await chrome.storage.local.remove(itemId);
           
           itemElement.remove();
           
-          if (siteGroup.querySelectorAll('.site-item').length === 0) {
+          // Обновляем счетчик товаров в группе
+          const itemCount = siteGroup.querySelector('.item-count');
+          const remainingItems = siteGroup.querySelectorAll('.site-item').length;
+          itemCount.textContent = `(${remainingItems})`;
+          
+          if (remainingItems === 0) {
+            // УДАЛЯЕМ группу полностью
             siteGroup.remove();
+            // Удаляем состояние группы
+            await removeGroupState(siteName);
           }
           
-          if (document.querySelectorAll('.site-item').length === 0) {
+          // Проверяем есть ли вообще товары во всех группах
+          const allItems = document.querySelectorAll('.site-item');
+          if (allItems.length === 0) {
             const emptyDiv = document.createElement('div');
             emptyDiv.className = 'empty';
             emptyDiv.textContent = 'Нет отслеживаемых товаров';
@@ -601,18 +735,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Обработка подсветки измененных цен
   document.querySelectorAll('.site-item').forEach(async (item) => {
     const id = item.dataset.id;
-    const itemData = await chrome.storage.local.get(id);
+    const result = await chrome.storage.local.get(id);
+    const itemData = result[id];
     
-    if (itemData[id]?.hasNewChange) {
+    if (itemData?.hasNewChange) {
       item.classList.add('highlight');
       
       setTimeout(async () => {
         try {
-          const currentData = await chrome.storage.local.get(id);
-          if (currentData[id]) {
+          const currentResult = await chrome.storage.local.get(id);
+          const currentData = currentResult[id];
+          if (currentData) {
             await chrome.storage.local.set({
               [id]: {
-                ...currentData[id],
+                ...currentData,
                 hasNewChange: false
               }
             });

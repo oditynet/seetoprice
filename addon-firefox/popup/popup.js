@@ -20,18 +20,14 @@ function generateSiteColor(domain) {
     return colorMap[domain];
   }
   
-  // Генерируем мягкие цвета на основе хеша домена
   let hash = 0;
   for (let i = 0; i < domain.length; i++) {
     hash = domain.charCodeAt(i) + ((hash << 5) - hash);
   }
   
-  // Мягкие пастельные цвета
   const hue = Math.abs(hash % 360);
-  
-  // Генерируем мягкие оттенки (более светлые)
-const saturation = 30 + Math.abs(hash % 15); // 30-45% (было 40-60%)
-const lightness = 90 + Math.abs(hash % 8);   // 90-98% (было 85-95%)
+  const saturation = 30 + Math.abs(hash % 15);
+  const lightness = 90 + Math.abs(hash % 8);
   const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   colorMap[domain] = color;
   
@@ -42,7 +38,6 @@ const lightness = 90 + Math.abs(hash % 8);   // 90-98% (было 85-95%)
 function getSiteName(url) {
   try {
     const domain = new URL(url).hostname;
-    // Убираем www и получаем основное имя домена
     return domain.replace(/^www\./, '');
   } catch (e) {
     return 'other';
@@ -70,10 +65,8 @@ async function loadTheme() {
     const { settings } = await browser.storage.local.get('settings');
     const theme = settings?.theme || 'light';
     
-    // Применяем тему к документу
     document.documentElement.setAttribute('data-theme', theme);
     
-    // Ждем полной загрузки DOM
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
         const themeSelect = document.getElementById('theme');
@@ -82,7 +75,6 @@ async function loadTheme() {
         }
       });
     } else {
-      // DOM уже загружен
       const themeSelect = document.getElementById('theme');
       if (themeSelect) {
         themeSelect.value = theme;
@@ -109,10 +101,50 @@ async function saveTheme(theme) {
   }
 }
 
+// Функции для работы с состоянием групп (СКРЫТЫЕ В НАСТРОЙКАХ)
+async function saveGroupState(groupName, isExpanded) {
+  try {
+    const { settings = {} } = await browser.storage.local.get('settings');
+    
+    // Сохраняем состояния групп ВНУТРИ настроек
+    if (!settings.groupStates) {
+      settings.groupStates = {};
+    }
+    settings.groupStates[groupName] = isExpanded;
+    
+    await browser.storage.local.set({ settings });
+  } catch (error) {
+    console.error('Ошибка сохранения состояния группы:', error);
+  }
+}
+
+async function loadGroupStates() {
+  try {
+    const { settings = {} } = await browser.storage.local.get('settings');
+    return settings.groupStates || {};
+  } catch (error) {
+    console.error('Ошибка загрузки состояния групп:', error);
+    return {};
+  }
+}
+
+// Функция удаления состояния пустой группы
+async function removeGroupState(groupName) {
+  try {
+    const { settings = {} } = await browser.storage.local.get('settings');
+    
+    if (settings.groupStates && settings.groupStates[groupName]) {
+      delete settings.groupStates[groupName];
+      await browser.storage.local.set({ settings });
+    }
+  } catch (error) {
+    console.error('Ошибка удаления состояния группы:', error);
+  }
+}
+
 async function findTelegramChatId(token, expectedMessage = '/start') {
   const apiUrl = `https://api.telegram.org/bot${token}/getUpdates`;
   if (token == '' || token == null || token == undefined) return '';
-  //console.log(token);
   try {
     const response = await fetch(apiUrl);
     const data = await response.json();
@@ -121,7 +153,6 @@ async function findTelegramChatId(token, expectedMessage = '/start') {
       throw new Error(data.description || 'Ошибка API Telegram');
     }
 
-    // Ищем последнее сообщение с нужным текстом
     const update = data.result.reverse().find(u => 
       u.message?.text?.includes(expectedMessage)
     );
@@ -143,15 +174,11 @@ function getProductNameFromUrl(url) {
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/');
     
-    // Специальная обработка для auto.ru
     if (url.includes('auto.ru')) {
-      // Для auto.ru берем марку и модель из пути
-      // Пример: /cars/used/sale/peugeot/traveller/1130122557-8ca69577/
-      const brand = pathParts[4] || ''; // peugeot
-      const model = pathParts[5] || ''; // traveller
+      const brand = pathParts[4] || '';
+      const model = pathParts[5] || '';
       
       if (brand && model) {
-        // Преобразуем в читаемый формат: Peugeot Traveller
         const formattedBrand = brand.charAt(0).toUpperCase() + brand.slice(1);
         const formattedModel = model.charAt(0).toUpperCase() + model.slice(1);
         return `${formattedBrand} ${formattedModel}`;
@@ -163,14 +190,12 @@ function getProductNameFromUrl(url) {
       productPart = pathParts[3] || '';
     } 
 
-    // Сокращаем до 30 символов
     if (productPart.length > 30) {
       productPart = productPart.substring(0, 27) + '...';
     }
 
-    // Декодируем URI-компоненты
     return decodeURIComponent(productPart)
-      .replace(/%30/g, ' ') // Заменяем %30 на пробелы
+      .replace(/%30/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -179,7 +204,6 @@ function getProductNameFromUrl(url) {
     return 'Товар';
   }
 }
-
 
 // Экспорт в файл
 async function exportToFile() {
@@ -210,8 +234,6 @@ async function exportToFile() {
     link.click();
     URL.revokeObjectURL(url);
     
-    alert(`Экспортировано ${Object.keys(selectedItems).length} товаров`);
-    
   } catch (error) {
     alert('Ошибка экспорта');
   }
@@ -219,7 +241,6 @@ async function exportToFile() {
 
 // Импорт - открываем страницу импорта
 function importFromFile() {
-  // Открываем страницу импорта в новой вкладке
   browser.tabs.create({
     url: browser.runtime.getURL('import.html')
   });
@@ -282,7 +303,7 @@ function renderImportExportItems(items) {
 browser.runtime.onMessage.addListener((message) => {
   if (message.action === "updateInterval") {
     browser.alarms.create("priceCheck", {
-      History: message.history
+      periodInMinutes: message.interval
     });
   }
 });
@@ -322,7 +343,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const { settings } = await browser.storage.local.get('settings');
   if(!settings) {
     try {
-      await browser.storage.local.set({ settings: { checkInterval: 10, checkHistory: 5, tgToken:'', tgId: '', theme: 'light'  }  });
+      await browser.storage.local.set({ 
+        settings: { 
+          checkInterval: 10, 
+          checkHistory: 5, 
+          tgToken:'', 
+          tgId: '', 
+          theme: 'light',
+          groupStates: {}
+        }  
+      });
     } catch (error) {
       console.error('Ошибка сохранения настроек history:', error);
     }
@@ -396,6 +426,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const themeSelect = document.getElementById('theme').value;
     await saveTheme(themeSelect);
     
+    // Сохраняем настройки ВМЕСТЕ с состояниями групп
+    const currentSettings = await browser.storage.local.get('settings');
+    const currentGroupStates = currentSettings.settings?.groupStates || {};
+    
     await browser.storage.local.set({
       settings: {
         checkInterval: parseInt(checkIntervalInput.value) || 10,
@@ -403,6 +437,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         tgToken: tgToken.value || '',
         tgId: await findTelegramChatId(tgToken.value) || '',
         theme: themeSelect || 'light',
+        groupStates: currentGroupStates
       }
     });
     
@@ -443,7 +478,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const itemsContainer = document.getElementById('items');
     
     try {
-      // Очистка контейнера
       while (itemsContainer.firstChild) {
         itemsContainer.removeChild(itemsContainer.firstChild);
       }
@@ -451,12 +485,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const items = await browser.storage.local.get();
       let historyLimit = 5;
 
-      // Обработка настроек
       if (items.settings) {
         historyLimit = items.settings.checkHistory || 5;
       }
 
-      // Создаем фрагмент для эффективного добавления элементов
+      // Загружаем сохраненные состояния групп
+      const groupStates = await loadGroupStates();
       const fragment = document.createDocumentFragment();
 
       // Группируем элементы по сайтам
@@ -479,39 +513,69 @@ document.addEventListener('DOMContentLoaded', async () => {
         return orderA - orderB;
       });
 
-      // Перебор групп сайтов
+      // Перебор групп сайтов - ТОЛЬКО ГРУППЫ С ТОВАРАМИ
       for (const [siteName, siteItems] of sortedSiteGroups) {
-        // Создаем контейнер для группы сайта
+        // Пропускаем пустые группы
+        if (siteItems.length === 0) {
+          continue;
+        }
+
         const siteGroupDiv = document.createElement('div');
         siteGroupDiv.className = 'site-group';
         
-        // Заголовок сайта
+        // Определяем начальное состояние группы
+        const isInitiallyExpanded = groupStates[siteName] !== false;
+        
+        // Заголовок сайта с иконкой сворачивания
         const siteHeader = document.createElement('div');
         siteHeader.className = 'site-header';
-        siteHeader.textContent = siteName;
         siteHeader.style.backgroundColor = generateSiteColor(siteName);
+        
+        // Иконка сворачивания/разворачивания
+        const toggleIcon = document.createElement('span');
+        toggleIcon.className = 'toggle-icon';
+        toggleIcon.textContent = isInitiallyExpanded ? '▼' : '▶';
+        toggleIcon.style.marginRight = '8px';
+        toggleIcon.style.cursor = 'pointer';
+        toggleIcon.style.fontSize = '12px';
+        
+        // Название сайта
+        const siteNameSpan = document.createElement('span');
+        siteNameSpan.textContent = siteName;
+        siteNameSpan.style.cursor = 'pointer';
+        siteNameSpan.style.flex = '1';
+        
+        // Количество товаров в группе
+        const itemCount = document.createElement('span');
+        itemCount.className = 'item-count';
+        itemCount.textContent = `(${siteItems.length})`;
+        itemCount.style.marginLeft = '8px';
+        itemCount.style.fontSize = '12px';
+        itemCount.style.opacity = '0.7';
+        
+        siteHeader.appendChild(toggleIcon);
+        siteHeader.appendChild(siteNameSpan);
+        siteHeader.appendChild(itemCount);
         
         // Контейнер для товаров сайта
         const siteItemsContainer = document.createElement('div');
         siteItemsContainer.className = 'site-items';
+        siteItemsContainer.style.display = isInitiallyExpanded ? 'block' : 'none';
         
         // Перебор товаров в группе
         for (const { id, data } of siteItems) {
           try {
-            // Создаем основные элементы
             const itemDiv = document.createElement('div');
             itemDiv.className = `site-item${data.hasNewChange ? ' highlight' : ''}`;
             itemDiv.dataset.id = id;
             itemDiv.style.backgroundColor = generateSiteColor(siteName);
 
-            // Ссылка на товар
             const link = document.createElement('a');
             link.className = 'product-link';
             link.href = escapeHTML(data.url);
             link.target = '_blank';
             link.textContent = escapeHTML(getProductNameFromUrl(data.url));
             
-            // Ценовые блоки
             const createPriceRow = (label, price) => {
               const row = document.createElement('div');
               row.className = 'price-row';
@@ -528,7 +592,6 @@ document.addEventListener('DOMContentLoaded', async () => {
               return row;
             };
 
-            // История изменений
             const historySection = document.createElement('div');
             historySection.className = 'history';
             
@@ -539,7 +602,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const historyList = document.createElement('ul');
             historyList.className = 'history-list';
 
-            // Добавляем элементы истории
             (data.priceHistory || []).slice().reverse().slice(0, historyLimit).forEach(entry => {
               const li = document.createElement('li');
               li.className = 'history-item';
@@ -556,7 +618,6 @@ document.addEventListener('DOMContentLoaded', async () => {
               historyList.appendChild(li);
             });
 
-            // Кнопка удаления
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-btn';
             deleteBtn.dataset.id = id;
@@ -566,7 +627,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             deleteIcon.alt = 'Удалить';
             deleteBtn.appendChild(deleteIcon);
 
-            // Собираем всю структуру
             itemDiv.append(
               link,
               createPriceRow('Исходная цена:', data.originalPrice),
@@ -582,13 +642,32 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         }
         
-        // Добавляем группу сайта в фрагмент
+        // Добавляем обработчик клика на заголовок
+        siteHeader.addEventListener('click', (e) => {
+          if (e.target.classList.contains('delete-btn')) return;
+          
+          const isExpanded = siteItemsContainer.style.display !== 'none';
+          const newState = !isExpanded;
+          
+          if (newState) {
+            // Разворачиваем
+            siteItemsContainer.style.display = 'block';
+            toggleIcon.textContent = '▼';
+          } else {
+            // Сворачиваем
+            siteItemsContainer.style.display = 'none';
+            toggleIcon.textContent = '▶';
+          }
+          
+          // Сохраняем состояние
+          saveGroupState(siteName, newState);
+        });
+        
         siteGroupDiv.appendChild(siteHeader);
         siteGroupDiv.appendChild(siteItemsContainer);
         fragment.appendChild(siteGroupDiv);
       }
 
-      // Если нет элементов
       if (fragment.childElementCount === 0) {
         const emptyDiv = document.createElement('div');
         emptyDiv.className = 'empty';
@@ -604,21 +683,29 @@ document.addEventListener('DOMContentLoaded', async () => {
           e.stopPropagation();
           const itemElement = btn.closest('.site-item');
           const siteGroup = btn.closest('.site-group');
+          const siteHeader = siteGroup.querySelector('.site-header');
+          const siteName = siteHeader.querySelector('span:not(.toggle-icon):not(.item-count)').textContent;
           const itemId = btn.dataset.id;
           
-          // Удаляем из хранилища
           await browser.storage.local.remove(itemId);
           
-          // Удаляем элемент из DOM
           itemElement.remove();
           
-          // Если в группе не осталось товаров, удаляем всю группу
-          if (siteGroup.querySelectorAll('.site-item').length === 0) {
+          // Обновляем счетчик товаров в группе
+          const itemCount = siteGroup.querySelector('.item-count');
+          const remainingItems = siteGroup.querySelectorAll('.site-item').length;
+          itemCount.textContent = `(${remainingItems})`;
+          
+          if (remainingItems === 0) {
+            // УДАЛЯЕМ группу полностью
             siteGroup.remove();
+            // Удаляем состояние группы
+            await removeGroupState(siteName);
           }
           
-          // Если вообще не осталось товаров, показываем сообщение
-          if (document.querySelectorAll('.site-item').length === 0) {
+          // Проверяем есть ли вообще товары во всех группах
+          const allItems = document.querySelectorAll('.site-item');
+          if (allItems.length === 0) {
             const emptyDiv = document.createElement('div');
             emptyDiv.className = 'empty';
             emptyDiv.textContent = 'Нет отслеживаемых товаров';
@@ -647,7 +734,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (itemData[id]?.hasNewChange) {
       item.classList.add('highlight');
       
-      // Таймер с правильным контекстом
       setTimeout(async () => {
         try {
           const currentData = await browser.storage.local.get(id);
