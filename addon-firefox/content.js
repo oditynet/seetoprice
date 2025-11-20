@@ -111,12 +111,7 @@ document.addEventListener('contextmenu', (e) => {
       let price = null;
       
       const priceSelectors = [
-        '.-no-margin_fsyzi_50',
-        '.cztff3 > .BVPC2X',
-        '[class*="price"]',
-        '.product-price',
-        '.current-price',
-        '.product-card-price'
+        '[data-qa="price-now"]'
       ];
       
       for (const selector of priceSelectors) {
@@ -126,7 +121,7 @@ document.addEventListener('contextmenu', (e) => {
           if (text && /\d/.test(text)) {
             priceElement = element;
             price = text;
-            //console.log('Found vseinstrumenti price with selector:', selector, 'Text:', text);
+            console.log('Found vseinstrumenti price with selector:', selector, 'Text:', text);
             break;
           }
         }

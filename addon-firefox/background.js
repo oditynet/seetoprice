@@ -59,16 +59,20 @@ function getCurrencySymbol(currency) {
 function normalizePrice(priceText) {
   if (!priceText) return null;
   
-  // Удаляем только пробелы, сохраняем запятые
+  console.log('Normalizing price text:', priceText); // для отладки
+  
+  // Удаляем только пробелы (включая неразрывные), сохраняем цифры и запятые/точки
   let normalized = priceText.replace(/\s/g, '');
   
-  // Находим число с запятой (может быть с точкой или без)
+  // Ищем число (может быть с запятой или точкой как разделителем)
   const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
   if (priceMatch) {
     normalized = priceMatch[0];
+    console.log('Normalized price:', normalized); // для отладки
+    return normalized;
   }
   
-  return normalized;
+  return null;
 }
 
 async function sendTelegramMessage(text, tgToken, tgId) {
@@ -136,17 +140,18 @@ function parseOzonPrice(document) {
   }
 }
 
-function parseVseinstrumentiPrice(document) {
+/*function parseVseinstrumentiPrice(document) {
   try {
     //console.log('Parsing vseinstrumenti price...');
     
+    // ПРИОРИТЕТНЫЕ селекторы для НОВОЙ цены
     const priceSelectors = [
-      '.-no-margin_fsyzi_50',
-      '.cztff3 > .BVPC2X',
-      '[class*="price"]',
-      '.product-price',
-      '.current-price',
-      '.product-card-price'
+      '[data-qa="price-now"]', // Основной селектор по data-атрибуту
+      '[data-behavior="price-now"]', // Альтернативный по data-behavior
+      '.product-price__current',
+      '.product-card-price__current',
+      '.price-new',
+      '.current-price'
     ];
     
     let currentPrice = null;
@@ -159,6 +164,69 @@ function parseVseinstrumentiPrice(document) {
           //console.log('Found vseinstrumenti element with selector:', selector, 'Text:', priceText);
           currentPrice = normalizePrice(priceText);
           break;
+        }
+      }
+    }
+
+    return {
+      price: currentPrice,
+      currency: 'RUB'
+    };
+  } catch (e) {
+    console.error('Vseinstrumenti parse error:', e);
+    return null;
+  }
+}*/
+
+function parseVseinstrumentiPrice(document) {
+  try {
+    console.log('Parsing vseinstrumenti price...');
+    
+    // Сначала ищем по точным селекторам новой цены
+    const newPriceSelectors = [
+      '[data-qa="price-now"]',
+      '[data-behavior="price-now"]',
+      '.MZu-SS p', // контейнер новой цены
+      '.product-price__current'
+    ];
+    
+    let currentPrice = null;
+    
+    for (const selector of newPriceSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        const priceText = element.textContent || element.innerText;
+        console.log('Found element with selector:', selector, 'Text:', priceText);
+        
+        if (priceText && /\d/.test(priceText)) {
+          currentPrice = normalizePrice(priceText);
+          if (currentPrice) {
+            console.log('Using price from selector:', selector, 'Price:', currentPrice);
+            break;
+          }
+        }
+      }
+    }
+
+    // Если не нашли, ищем любой элемент с ценой но ИСКЛЮЧАЕМ старую цену
+    if (!currentPrice) {
+      const allPriceElements = document.querySelectorAll('[class*="price"], [data-qa*="price"], [data-behavior*="price"]');
+      
+      for (const element of allPriceElements) {
+        // Пропускаем элементы со старой ценой
+        if (element.closest('[data-qa="price-old"]') || 
+            element.matches('[data-qa*="old"]') ||
+            element.textContent.includes('Выгода')) {
+          continue;
+        }
+        
+        const priceText = element.textContent || element.innerText;
+        if (priceText && /\d/.test(priceText) && !priceText.includes('Выгода')) {
+          currentPrice = normalizePrice(priceText);
+          if (currentPrice) {
+            console.log('Using fallback price:', currentPrice);
+            break;
+          }
         }
       }
     }
