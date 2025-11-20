@@ -1,4 +1,15 @@
-document.getElementById('fileInput').addEventListener('change', async function(e) {
+// Ждем загрузки DOM
+document.addEventListener('DOMContentLoaded', function() {
+    // Находим элементы
+    const fileInput = document.getElementById('fileInput');
+    const closeButton = document.getElementById('closeButton');
+    
+    // Добавляем обработчики
+    fileInput.addEventListener('change', handleFileImport);
+    closeButton.addEventListener('click', closeTab);
+});
+
+async function handleFileImport(e) {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -6,11 +17,9 @@ document.getElementById('fileInput').addEventListener('change', async function(e
         const text = await file.text();
         const itemsToImport = JSON.parse(text);
         
-        // Получаем существующие товары
         const existingItems = await browser.storage.local.get();
         const existingUrls = new Set();
         
-        // Собираем все существующие URL
         Object.values(existingItems).forEach(item => {
             if (item && item.url) {
                 existingUrls.add(item.url);
@@ -20,19 +29,15 @@ document.getElementById('fileInput').addEventListener('change', async function(e
         let importedCount = 0;
         let skippedCount = 0;
         
-        // Импортируем товары
         for (const [id, data] of Object.entries(itemsToImport)) {
-            // Проверяем есть ли товар с таким URL
             if (data.url && existingUrls.has(data.url)) {
                 skippedCount++;
                 continue;
             }
             
-            // Добавляем новый товар
             await browser.storage.local.set({ [id]: data });
             importedCount++;
             
-            // Добавляем URL в множество существующих
             if (data.url) {
                 existingUrls.add(data.url);
             }
@@ -48,9 +53,8 @@ document.getElementById('fileInput').addEventListener('change', async function(e
     } catch (error) {
         showStatus('Ошибка: неверный формат файла', 'error');
     }
-});
+}
 
-// Закрыть вкладку
 function closeTab() {
     browser.tabs.getCurrent().then(tab => {
         browser.tabs.remove(tab.id);
