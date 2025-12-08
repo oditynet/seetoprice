@@ -113,3 +113,6 @@ about:debugging#/runtime/this-firefox
 <br>
 
 <img src="https://github.com/oditynet/seetoprice/blob/main/screen2.png" title="1.0.4" width="800" />
+
+
+Иконки взял с https://icon-icons.com/ru/icon/cosine/44532. Автор Icons8  . Лицензия тут https://creativecommons.org/licenses/by-nc-nd/4.0/
