@@ -10,7 +10,7 @@
 [![][github-stars-shield]][github-stars-link]
 [![][github-license-shield]][github-license-shield]<br/>
 
-Addon for firefox !!! https://addons.mozilla.org/firefox/downloads/file/4621875/seetoprice-1.2.2.1.zip
+Addon for firefox !!! https://addons.mozilla.org/firefox/downloads/file/4621875/seetoprice-1.2.2.4.zip
 https://addons.mozilla.org/ru/firefox/addon/seetoprice/
 
 Addon for Chrome (I not have a 5$)
