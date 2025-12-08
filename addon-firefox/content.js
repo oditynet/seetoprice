@@ -111,6 +111,12 @@ document.addEventListener('contextmenu', (e) => {
       let price = null;
       
       const priceSelectors = [
+        '.-no-margin_fsyzi_50',
+        '.cztff3 > .BVPC2X',
+        '[class*="price"]',
+        '.product-price',
+        '.current-price',
+        '.product-card-price',
         '[data-qa="price-now"]'
       ];
       
@@ -121,7 +127,7 @@ document.addEventListener('contextmenu', (e) => {
           if (text && /\d/.test(text)) {
             priceElement = element;
             price = text;
-            console.log('Found vseinstrumenti price with selector:', selector, 'Text:', text);
+            //console.log('Found vseinstrumenti price with selector:', selector, 'Text:', text);
             break;
           }
         }
@@ -139,6 +145,48 @@ document.addEventListener('contextmenu', (e) => {
         return;
       }
     }
+
+
+
+ else if (window.location.hostname.includes('petrovich.ru')) {
+      let priceElement = null;
+      let price = null;
+      
+      const priceSelectors = [
+        '[data-test="product-gold-price"] .PriceContentWrapper-sc-jgbo00',
+        '[data-test="product-retail-price"] .PriceContentWrapper-sc-jgbo00',
+        '.PriceContentWrapper-sc-jgbo00',
+        '.price',
+        '.product-price',
+        '[class*="price"]'
+      ];
+      
+      for (const selector of priceSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const text = element.textContent || element.innerText;
+          if (text && text.includes('₽') && /\d/.test(text)) {
+            priceElement = element;
+            price = text;
+            console.log('Found petrovich price with selector:', selector, 'Text:', text);
+            break;
+          }
+        }
+      }
+      
+      if (priceElement && price) {
+        const normalizedPrice = normalizePrice(price);
+        
+        lastPriceData = {
+          selector: getSelector(priceElement),
+          price: normalizedPrice + ' ₽'
+        };
+        
+        console.log('Petrovich price found:', lastPriceData);
+        return;
+      }
+    }
+
 
     // Общая логика для других сайтов
     const targetElement = e.target.closest('[data-qa="product-price"], .price, [itemprop="price"]') || e.target;
