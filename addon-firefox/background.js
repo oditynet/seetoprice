@@ -148,7 +148,21 @@ function parseVseinstrumentiPrice(document) {
       '[class*="price"]',
       '.product-price',
       '.current-price',
-      '.product-card-price'
+      '.product-card-price',
+    '[data-behavior="price-now"]',
+    '[data-qa="price-now"]',
+    // Приоритет 2: Селекторы для текущей верстки (по классам)
+    '.MZu-SS',
+    '.ljRWE3 p', // Родительский контейнер цены
+    
+    // Приоритет 3: Селекторы для предыдущих версий (ваш старый селектор и похожие)
+    '.price-item.js-price-item',
+    '.current-price',
+    '[itemprop="price"]',
+    
+    // Приоритет 4: Универсальные селекторы (на случай кардинальных изменений)
+    '[class*="price"][class*="now"]',
+    '[class*="Price"][class*="current"]'
     ];
     
     let currentPrice = null;
