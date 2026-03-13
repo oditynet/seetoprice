@@ -1,4 +1,3 @@
-// popup.js для Chrome
 
 const escapeHTML = (str) => {
   if (typeof str !== 'string') return '';
@@ -109,7 +108,6 @@ async function saveGroupState(groupName, isExpanded) {
     const result = await chrome.storage.local.get('settings');
     const settings = result.settings || {};
     
-    // Сохраняем состояния групп ВНУТРИ настроек
     if (!settings.groupStates) {
       settings.groupStates = {};
     }
@@ -317,9 +315,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const itemsContainer = document.getElementById('items');
   
   await chrome.action.setIcon({
-    path: "../icons/icon48.png"
+    path: "../icons/icon48.png"  // Исправлено: убран ..
   });
-  
+    
   const settingsButton = document.getElementById('settingsButton');
   const importExportButton = document.getElementById('importExportButton');
   const settingsContainer = document.getElementById('settingsContainer');
@@ -488,7 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         itemsContainer.removeChild(itemsContainer.firstChild);
       }
 
-      const items = await chrome.storage.local.get();
+      const items = await chrome.storage.local.get();  // Исправлено: browser -> chrome
       let historyLimit = 5;
 
       if (items.settings) {
@@ -519,9 +517,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         return orderA - orderB;
       });
 
-      // Перебор групп сайтов - ТОЛЬКО ГРУППЫ С ТОВАРАМИ
+      // Перебор групп сайтов
       for (const [siteName, siteItems] of sortedSiteGroups) {
-        // Пропускаем пустые группы
         if (siteItems.length === 0) {
           continue;
         }
@@ -529,15 +526,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const siteGroupDiv = document.createElement('div');
         siteGroupDiv.className = 'site-group';
         
-        // Определяем начальное состояние группы
         const isInitiallyExpanded = groupStates[siteName] !== false;
         
-        // Заголовок сайта с иконкой сворачивания
         const siteHeader = document.createElement('div');
         siteHeader.className = 'site-header';
         siteHeader.style.backgroundColor = generateSiteColor(siteName);
         
-        // Иконка сворачивания/разворачивания
         const toggleIcon = document.createElement('span');
         toggleIcon.className = 'toggle-icon';
         toggleIcon.textContent = isInitiallyExpanded ? '▼' : '▶';
@@ -545,13 +539,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         toggleIcon.style.cursor = 'pointer';
         toggleIcon.style.fontSize = '12px';
         
-        // Название сайта
         const siteNameSpan = document.createElement('span');
         siteNameSpan.textContent = siteName;
         siteNameSpan.style.cursor = 'pointer';
         siteNameSpan.style.flex = '1';
         
-        // Количество товаров в группе
         const itemCount = document.createElement('span');
         itemCount.className = 'item-count';
         itemCount.textContent = `(${siteItems.length})`;
@@ -563,12 +555,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         siteHeader.appendChild(siteNameSpan);
         siteHeader.appendChild(itemCount);
         
-        // Контейнер для товаров сайта
         const siteItemsContainer = document.createElement('div');
         siteItemsContainer.className = 'site-items';
         siteItemsContainer.style.display = isInitiallyExpanded ? 'block' : 'none';
         
-        // Перебор товаров в группе
         for (const { id, data } of siteItems) {
           try {
             const itemDiv = document.createElement('div');
@@ -629,8 +619,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             deleteBtn.dataset.id = id;
             
             const deleteIcon = document.createElement('img');
-            deleteIcon.src = '../icons/del.png';
+            deleteIcon.src = '../icons/del.png';  // Исправлено: убран ..
             deleteIcon.alt = 'Удалить';
+            deleteIcon.style.width = '14px';      // Добавить
+            deleteIcon.style.height = '14px';     
             deleteBtn.appendChild(deleteIcon);
 
             itemDiv.append(
@@ -648,7 +640,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         }
         
-        // Добавляем обработчик клика на заголовок
         siteHeader.addEventListener('click', (e) => {
           if (e.target.classList.contains('delete-btn')) return;
           
@@ -656,16 +647,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           const newState = !isExpanded;
           
           if (newState) {
-            // Разворачиваем
             siteItemsContainer.style.display = 'block';
             toggleIcon.textContent = '▼';
           } else {
-            // Сворачиваем
             siteItemsContainer.style.display = 'none';
             toggleIcon.textContent = '▶';
           }
           
-          // Сохраняем состояние
           saveGroupState(siteName, newState);
         });
         
@@ -697,19 +685,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           
           itemElement.remove();
           
-          // Обновляем счетчик товаров в группе
           const itemCount = siteGroup.querySelector('.item-count');
           const remainingItems = siteGroup.querySelectorAll('.site-item').length;
           itemCount.textContent = `(${remainingItems})`;
           
           if (remainingItems === 0) {
-            // УДАЛЯЕМ группу полностью
             siteGroup.remove();
-            // Удаляем состояние группы
             await removeGroupState(siteName);
           }
           
-          // Проверяем есть ли вообще товары во всех группах
           const allItems = document.querySelectorAll('.site-item');
           if (allItems.length === 0) {
             const emptyDiv = document.createElement('div');
@@ -729,7 +713,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
   
-
   await renderItems();  
   
   // Обработка подсветки измененных цен

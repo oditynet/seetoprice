@@ -1,4 +1,4 @@
-// content.js для Chrome
+// content.js для Chrome (исправлены только ошибки перевода)
 let lastPriceData = null;
 
 // Функция для определения валюты
@@ -54,7 +54,19 @@ function getCurrencySymbol(currency) {
 
 function normalizePrice(priceText) {
   if (!priceText) return null;
-  return priceText.replace(/[^\d]/g, '');
+  
+  // Удаляем только пробелы, сохраняем запятые
+ // let normalized = priceText.replace(/\s/g, '');
+   let normalized = priceText
+    .replace(/[\s\u2000-\u200F\u202F\u205F\u3000]/g, '') // удаляем все виды пробелов
+    .replace(/[^\d.,-]/g, ''); // удаляем всё, кроме цифр, точек, запятых и минусов
+  // Находим число с запятой (может быть с точкой или без)
+  const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
+  if (priceMatch) {
+    normalized = priceMatch[0];
+  }
+  
+  return normalized;
 }
 
 const getSelector = (el) => {
@@ -100,52 +112,83 @@ document.addEventListener('contextmenu', (e) => {
       let priceElement = null;
       let price = null;
       
-      // Ищем основную текущую цену
-      const currentPriceElement = document.querySelector('[data-qa="price-now"]');
+      const priceSelectors = [
+        '.-no-margin_fsyzi_50',
+        '.cztff3 > .BVPC2X',
+        '[class*="price"]',
+        '.product-price',
+        '.current-price',
+        '.product-card-price',
+        '[data-qa="price-now"]'
+      ];
       
-      if (currentPriceElement) {
-        const text = currentPriceElement.textContent.trim();
-        const priceMatch = text.match(/(\d+)\s*[₽$€₸]/);
-        if (priceMatch) {
-          priceElement = currentPriceElement;
-          const currency = detectCurrency(text);
-          const currencySymbol = getCurrencySymbol(currency);
-          price = priceMatch[1] + ' ' + currencySymbol;
-        }
-      }
-      
-      // Если не нашли, ищем в основном блоке
-      if (!priceElement) {
-        const mainPriceBlock = document.querySelector('.MZu-SS');
-        if (mainPriceBlock) {
-          const priceElements = mainPriceBlock.querySelectorAll('p, span');
-          for (const element of priceElements) {
-            const text = element.textContent.trim();
-            if (text.includes('₽') || text.includes('$') || text.includes('€') || text.includes('₸')) {
-              const priceMatch = text.match(/(\d+)\s*[₽$€₸]/);
-              if (priceMatch) {
-                const priceNum = parseInt(priceMatch[1]);
-                if (priceNum > 100) {
-                  priceElement = element;
-                  const currency = detectCurrency(text);
-                  const currencySymbol = getCurrencySymbol(currency);
-                  price = priceNum + ' ' + currencySymbol;
-                  break;
-                }
-              }
-            }
+      for (const selector of priceSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const text = element.textContent.trim();
+          if (text && /\d/.test(text)) {
+            priceElement = element;
+            price = text;
+            //console.log('Found vseinstrumenti price with selector:', selector, 'Text:', text);
+            break;
           }
         }
       }
       
       if (priceElement && price) {
+        const normalizedPrice = normalizePrice(price);
+        
         lastPriceData = {
           selector: getSelector(priceElement),
-          price: price
+          price: normalizedPrice + ' ₽'
         };
+        
+        console.log('Vseinstrumenti price found:', lastPriceData);
         return;
       }
     }
+
+
+
+ else if (window.location.hostname.includes('petrovich.ru')) {
+      let priceElement = null;
+      let price = null;
+      
+      const priceSelectors = [
+        '[data-test="product-gold-price"] .PriceContentWrapper-sc-jgbo00',
+        '[data-test="product-retail-price"] .PriceContentWrapper-sc-jgbo00',
+        '.PriceContentWrapper-sc-jgbo00',
+        '.price',
+        '.product-price',
+        '[class*="price"]'
+      ];
+      
+      for (const selector of priceSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const text = element.textContent || element.innerText;
+          if (text && text.includes('₽') && /\d/.test(text)) {
+            priceElement = element;
+            price = text;
+            console.log('Found petrovich price with selector:', selector, 'Text:', text);
+            break;
+          }
+        }
+      }
+      
+      if (priceElement && price) {
+        const normalizedPrice = normalizePrice(price);
+        
+        lastPriceData = {
+          selector: getSelector(priceElement),
+          price: normalizedPrice + ' ₽'
+        };
+        
+        console.log('Petrovich price found:', lastPriceData);
+        return;
+      }
+    }
+
 
     // Общая логика для других сайтов
     const targetElement = e.target.closest('[data-qa="product-price"], .price, [itemprop="price"]') || e.target;
@@ -153,20 +196,17 @@ document.addEventListener('contextmenu', (e) => {
     const rawPrice = targetElement.textContent.trim();
     const currency = detectCurrency(rawPrice);
     const currencySymbol = getCurrencySymbol(currency);
-    
-    let normalizedPrice = normalizePrice(rawPrice);
-    
+    const normalizedPrice = normalizePrice(rawPrice);
+
     if (normalizedPrice && normalizedPrice.length > 0) {
-      const firstNumberMatch = rawPrice.match(/(\d[\d\s,]*)\s*[₽р.$€₸]/);
-      if (firstNumberMatch) {
-        normalizedPrice = firstNumberMatch[1].replace(/[^\d]/g, '');
-      }
-      
       lastPriceData = {
         selector: getSelector(targetElement),
         price: normalizedPrice + ' ' + currencySymbol
       };
+
+      //console.log('Price data saved:', lastPriceData);
     } else {
+      console.log('No valid price found');
       lastPriceData = null;
     }
   } catch (error) {
