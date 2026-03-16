@@ -102,18 +102,30 @@ const getSelector = (el) => {
   return path.join(' > ');
 };
 
+// Функция для проверки статуса скидки
+function checkOzonDiscountStatus() {
+  const widget = document.querySelector('[data-widget="foundCheaperText"]');
+  if (!widget) return { exists: false };
+  
+  const text = widget.textContent || '';
+  return {
+    exists: true,
+    text: text
+  };
+}
+
 // Функция для нажатия на кнопку "Хочу скидку"
 async function clickOzonDiscountButton() {
   if (!window.location.hostname.includes('ozon.ru')) {
     return { success: false, error: 'Не Ozon сайт' };
   }
   
-  const buttonWidget = document.querySelector('[data-widget="foundCheaperText"]');
-  if (!buttonWidget) {
+  const widget = document.querySelector('[data-widget="foundCheaperText"]');
+  if (!widget) {
     return { success: false, error: 'Кнопка не найдена' };
   }
   
-  const button = buttonWidget.querySelector('button');
+  const button = widget.querySelector('button');
   if (!button) {
     return { success: false, error: 'Элемент button не найден' };
   }
@@ -124,12 +136,9 @@ async function clickOzonDiscountButton() {
     
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    const stillExists = document.querySelector('[data-widget="foundCheaperText"]');
-    
     return { 
       success: true, 
-      message: 'Кнопка нажата',
-      buttonStillExists: !!stillExists
+      message: 'Кнопка нажата'
     };
   } catch (error) {
     console.error('Ошибка при нажатии на кнопку:', error);
@@ -246,14 +255,8 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === "checkOzonDiscount") {
-    const buttonWidget = document.querySelector('[data-widget="foundCheaperText"]');
-    const button = buttonWidget?.querySelector('button');
-    
-    sendResponse({
-      exists: !!button,
-      text: button?.textContent || null,
-      classes: button?.className || null
-    });
+    const status = checkOzonDiscountStatus();
+    sendResponse(status);
     return true;
   }
   
