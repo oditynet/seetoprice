@@ -16,7 +16,7 @@ function detectCurrency(priceText) {
   if (!priceText) return 'RUB';
   
   if (priceText.includes('₽') || priceText.includes('руб')) return 'RUB';
-  if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('Br')) return 'BYN';
+  if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('ƃ')) return 'BYN';
   if (priceText.includes('₸')) return 'KZT';
   if (priceText.includes('$') || priceText.includes('USD')) return 'USD';
   if (priceText.includes('€') || priceText.includes('EUR')) return 'EUR';
@@ -40,7 +40,8 @@ function detectCurrency(priceText) {
 function getCurrencySymbol(currency) {
   const symbols = {
     'RUB': '₽',
-    'BYN': 'BYN', 
+    'ƃ': 'BYN',
+    'BYN': 'ƃ', 
     'KZT': '₸',
     'USD': '$',
     'EUR': '€',
@@ -339,45 +340,54 @@ async function getWilbPrice(document) {
 
     try {
       const checkElement = () => {
-        const priceContainers = [
-          '[class*="priceBlockPriceWrapWallet"]',
-          '[class*="priceBlockPriceWrap--"]',
-          '.price-block'
+        // Специально ищем ТОЛЬКО первую цену (в кнопке)
+        const primaryPriceSelectors = [
+          '.priceBlockWalletPrice--RJGuT h2',                    // Основная цена
+          '.priceBlockWalletPrice--RJGuT .mo-button__text-content h2',
+          'button[class*="priceBlockWalletPrice"] h2',           // Кнопка с ценой
+          '[class*="priceBlockPriceWrap"] h2'                     // Любой h2 в блоке цены
         ];
         
-        let priceContainer = null;
-        for (const selector of priceContainers) {
-          priceContainer = document.querySelector(selector);
-          if (priceContainer) {
-            break;
-          }
-        }
+        let mainPrice = null;
         
-        if (priceContainer) {
-          const containerText = priceContainer.textContent || priceContainer.innerText;
-          const priceLines = containerText.split('\n').filter(line => line.trim());
-          
-          let mainPrice = null;
-          let mainCurrency = 'RUB';
-          
-          for (const line of priceLines) {
-            const trimmed = line.trim();
-            if (/\d/.test(trimmed) && (trimmed.includes('₽') || trimmed.includes('р.') || trimmed.includes('₸') || trimmed.includes('BYN') || trimmed.includes('֏') || trimmed.includes('сом') || trimmed.includes('сум') || trimmed.includes('с.') || trimmed.includes('$') || trimmed.includes('€'))) {
-              mainPrice = trimmed;
-              mainCurrency = detectCurrency(trimmed);
+        // Ищем только первую цену
+        for (const selector of primaryPriceSelectors) {
+          const element = document.querySelector(selector);
+          if (element) {
+            const priceText = element.textContent.trim();
+            // Берем только число, игнорируем символы
+            const priceMatch = priceText.match(/(\d[\d\s]*)/);
+            if (priceMatch) {
+              mainPrice = priceMatch[0];
+              console.log('Найдена основная цена:', mainPrice, 'по селектору:', selector);
               break;
             }
           }
-          
-          if (mainPrice) {
-            clearTimeout(timeout);
-            resolve({
-              price: normalizePrice(mainPrice),
-              currency: mainCurrency
-            });
-          } else {
-            setTimeout(checkElement, 700);
+        }
+        
+        // Если не нашли через h2, ищем первый числовой блок
+        if (!mainPrice) {
+          const priceContainers = document.querySelectorAll('[class*="price"], [class*="Price"]');
+          for (const container of priceContainers) {
+            const text = container.textContent.trim();
+            // Ищем первое вхождение числа с символом рубля
+            if (text.includes('₽') || text.includes('р.')) {
+              const priceMatch = text.match(/(\d[\d\s]*)/);
+              if (priceMatch) {
+                mainPrice = priceMatch[0];
+                console.log('Найдена цена в контейнере:', mainPrice);
+                break;
+              }
+            }
           }
+        }
+        
+        if (mainPrice) {
+          clearTimeout(timeout);
+          resolve({
+            price: normalizePrice(mainPrice),
+            currency: 'RUB'
+          });
         } else {
           setTimeout(checkElement, 700);
         }
@@ -392,7 +402,6 @@ async function getWilbPrice(document) {
     }
   });
 }
-
 async function checkPrices() {
   try {
     const items = await browser.storage.local.get();
@@ -587,7 +596,7 @@ async function checkPrices() {
           const finalPrice = priceData.price + ' ' + currencySymbol;
           const previousPrice = priceData.previousPrice ? priceData.previousPrice + ' ' + currencySymbol : null;
 
-          if (finalPrice && finalPrice !== item.currentPrice) {
+          if (finalPrice && finalPrice !== item.currentPrice) { //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             await updatePrice(itemId, finalPrice, previousPrice, historylen);
             sendPriceAlert(item, finalPrice, tgToken, tgId);
           } 

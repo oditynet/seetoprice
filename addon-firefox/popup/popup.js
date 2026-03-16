@@ -564,95 +564,96 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Кнопка скидки (только для Ozon)
             if (siteName.includes('ozon.ru')) {
-              const discountBtn = document.createElement('button');
-              discountBtn.style.width = '22px';
-              discountBtn.style.height = '16px';
-              discountBtn.style.border = '1px solid #ccc';
-              discountBtn.style.borderRadius = '4px';
-              discountBtn.style.cursor = 'pointer';
-              discountBtn.style.display = 'flex';
-              discountBtn.style.alignItems = 'center';
-              discountBtn.style.justifyContent = 'center';
-              discountBtn.style.fontSize = '14px';
-              discountBtn.style.fontWeight = 'bold';
-              discountBtn.style.padding = '0';
-              discountBtn.style.lineHeight = '1';
-              discountBtn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-              discountBtn.style.backgroundColor = 'transparent';
-              discountBtn.style.color = '#666';
-              discountBtn.title = 'Запросить скидку';
-              
-              // Определяем статус скидки
-              if (data.discountStatus === 'approved') {
-                discountBtn.style.backgroundColor = '#28a745';
-                discountBtn.style.color = 'white';
-                discountBtn.style.border = 'none';
-                discountBtn.title = 'Скидка одобрена!';
-                discountBtn.disabled = true;
-                discountBtn.textContent = '✓';
-              } else if (data.discountStatus === 'rejected') {
-                discountBtn.style.backgroundColor = '#dc3545';
-                discountBtn.style.color = 'white';
-                discountBtn.style.border = 'none';
-                discountBtn.title = 'Скидка отклонена';
-                discountBtn.disabled = false;
-                discountBtn.textContent = '✗';
-              } else if (data.discountStatus === 'pending' || data.discountStatus === 'requested' || data.discountRequested) {
-                discountBtn.style.backgroundColor = '#ffc107';
-                discountBtn.style.color = '#000';
-                discountBtn.style.border = 'none';
-                discountBtn.title = 'Ожидание ответа (нажмите для повторного запроса)';
-                discountBtn.disabled = false;
-                discountBtn.textContent = '⏳';
-              } else if (data.discountStatus === 'available' || data.discountAvailable) {
-                discountBtn.style.backgroundColor = 'transparent';
-                discountBtn.style.color = '#667';
-                discountBtn.style.border = '1px solid #ccc';
-                discountBtn.title = 'Запросить скидку';
-                discountBtn.disabled = false;
-                discountBtn.textContent = '%';
-              }
-              
-              // Добавляем обработчик клика (если кнопка не заблокирована)
-              if (!discountBtn.disabled) {
-                discountBtn.addEventListener('click', async (e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  
-                  const originalText = discountBtn.textContent;
-                  const originalBg = discountBtn.style.backgroundColor;
-                  
-                  discountBtn.disabled = true;
-                  discountBtn.style.opacity = '0.5';
-                  discountBtn.textContent = '⏳';
-                  discountBtn.title = 'Запрос отправляется...';
-                  
-                  const success = await requestDiscount(data.url, id, data);
-                  
-                  if (success) {
-                    discountBtn.style.backgroundColor = '#ffc107';
-                    discountBtn.style.color = '#000';
-                    discountBtn.style.border = 'none';
-                    discountBtn.title = 'Скидка запрошена, ожидается ответ';
-                    discountBtn.textContent = '⏳';
-                    discountBtn.style.opacity = '1';
-                    discountBtn.disabled = false;
-                  } else {
-                    discountBtn.style.backgroundColor = originalBg;
-                    discountBtn.style.color = data.discountStatus === 'available' ? '#666' : '#000';
-                    discountBtn.style.border = data.discountStatus === 'available' ? '1px solid #ccc' : 'none';
-                    discountBtn.textContent = originalText;
-                    discountBtn.title = 'Ошибка, попробуйте снова';
-                    discountBtn.style.opacity = '1';
-                    discountBtn.disabled = false;
-                  }
-                });
-              }
-              
-              buttonsContainer.appendChild(discountBtn);
-            }
-
-            // Кнопка удаления
+  
+  // Проверяем, есть ли вообще какой-то статус скидки
+  if (!data.discountStatus && !data.discountAvailable && !data.discountRequested) {
+    // Нет статуса - не рисуем кнопку
+    // Ничего не делаем, просто пропускаем
+  } 
+  else {
+    const discountBtn = document.createElement('button');
+    discountBtn.style.width = '18px';
+    discountBtn.style.height = '16px';
+    discountBtn.style.border = 'none';
+    discountBtn.style.borderRadius = '4px';
+    discountBtn.style.cursor = 'pointer';
+    discountBtn.style.display = 'flex';
+    discountBtn.style.alignItems = 'center';
+    discountBtn.style.justifyContent = 'center';
+    discountBtn.style.fontSize = '14px';
+    discountBtn.style.fontWeight = 'bold';
+    discountBtn.style.padding = '0';
+    discountBtn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+    
+    // Состояние 1: Скидка получена (зеленая галочка)
+    if (data.discountStatus === 'approved' || data.discountStatus === 'received') {
+      discountBtn.style.backgroundColor = '#28a745';
+      discountBtn.style.color = 'white';
+      discountBtn.title = 'Скидка получена';
+      discountBtn.disabled = true;
+      discountBtn.textContent = '✓';
+      discountBtn.style.fontSize = '16px';
+      buttonsContainer.appendChild(discountBtn);
+    }
+    // Состояние 2: Скидка отклонена (красный крестик)
+    else if (data.discountStatus === 'rejected') {
+      discountBtn.style.backgroundColor = '#dc3545';
+      discountBtn.style.color = 'white';
+      discountBtn.title = 'Скидка отклонена';
+      discountBtn.disabled = false;
+      discountBtn.textContent = '✗';
+      discountBtn.style.fontSize = '14px';
+      buttonsContainer.appendChild(discountBtn);
+    }
+    // Состояние 3: Скидка запрошена (желтые часы)
+    else if (data.discountStatus === 'requested' || data.discountRequested) {
+      discountBtn.style.backgroundColor = '#ffc107';
+      discountBtn.style.color = '#000';
+      discountBtn.title = 'Скидка запрошена';
+      discountBtn.disabled = false;
+      discountBtn.textContent = '⏳';
+      buttonsContainer.appendChild(discountBtn);
+    }
+    // Состояние 4: Скидка доступна (прозрачная с %)
+    else if (data.discountStatus === 'available' || data.discountAvailable) {
+      discountBtn.style.backgroundColor = 'transparent';
+      discountBtn.style.color = '#666';
+      discountBtn.style.border = '1px solid #ccc';
+      discountBtn.title = 'Запросить скидку';
+      discountBtn.textContent = '%';
+      discountBtn.disabled = false;
+      
+      discountBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        const originalText = discountBtn.textContent;
+        discountBtn.disabled = true;
+        discountBtn.textContent = '⏳';
+        discountBtn.title = 'Запрос отправляется...';
+        
+        const success = await requestDiscount(data.url, id, data);
+        
+        if (success) {
+          discountBtn.style.backgroundColor = '#ffc107';
+          discountBtn.style.color = '#000';
+          discountBtn.style.border = 'none';
+          discountBtn.textContent = '⏳';
+          discountBtn.title = 'Скидка запрошена';
+          discountBtn.disabled = false;
+        } else {
+          discountBtn.disabled = false;
+          discountBtn.textContent = originalText;
+          discountBtn.title = 'Запросить скидку (ошибка)';
+        }
+      });
+      
+      buttonsContainer.appendChild(discountBtn);
+    }
+    // Состояние 5: Любой другой случай - не рисуем кнопку
+  }
+}
+           // Кнопка удаления
             const deleteBtn = document.createElement('button');
             deleteBtn.style.width = '18px';
             deleteBtn.style.height = '16px';

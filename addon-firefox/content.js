@@ -6,7 +6,7 @@ function detectCurrency(priceText) {
   if (!priceText) return 'RUB';
   
   if (priceText.includes('₽') || priceText.includes('руб')) return 'RUB';
-  if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('Br')) return 'BYN';
+  if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('ƃ')) return 'BYN';
   if (priceText.includes('₸')) return 'KZT';
   if (priceText.includes('$') || priceText.includes('USD')) return 'USD';
   if (priceText.includes('€') || priceText.includes('EUR')) return 'EUR';
@@ -30,7 +30,8 @@ function detectCurrency(priceText) {
 function getCurrencySymbol(currency) {
   const symbols = {
     'RUB': '₽',
-    'BYN': 'BYN', 
+    'ƃ': 'BYN',
+    'BYN': 'ƃ', 
     'KZT': '₸',
     'USD': '$',
     'EUR': '€',
