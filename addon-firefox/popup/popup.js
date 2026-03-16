@@ -101,12 +101,11 @@ async function saveTheme(theme) {
   }
 }
 
-// Функции для работы с состоянием групп (СКРЫТЫЕ В НАСТРОЙКАХ)
+// Функции для работы с состоянием групп
 async function saveGroupState(groupName, isExpanded) {
   try {
     const { settings = {} } = await browser.storage.local.get('settings');
     
-    // Сохраняем состояния групп ВНУТРИ настроек
     if (!settings.groupStates) {
       settings.groupStates = {};
     }
@@ -128,7 +127,6 @@ async function loadGroupStates() {
   }
 }
 
-// Функция удаления состояния пустой группы
 async function removeGroupState(groupName) {
   try {
     const { settings = {} } = await browser.storage.local.get('settings');
@@ -205,6 +203,67 @@ function getProductNameFromUrl(url) {
   }
 }
 
+// Функция для запроса скидки
+async function requestDiscount(url, itemId, itemData) {
+  try {
+    const tab = await browser.tabs.create({
+      url: url,
+      active: true
+    });
+
+    await new Promise(resolve => 
+      browser.tabs.onUpdated.addListener(function listener(tabId, info) {
+        if (tabId === tab.id && info.status === 'complete') {
+          browser.tabs.onUpdated.removeListener(listener);
+          resolve();
+        }
+      })
+    );
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    const result = await browser.tabs.sendMessage(tab.id, {
+      action: "clickOzonDiscount"
+    });
+
+    if (result.success) {
+      // Получаем текст кнопки после нажатия
+      const textResult = await browser.tabs.sendMessage(tab.id, {
+        action: "getDiscountText"
+      });
+      
+      // Обновляем статус в storage
+      await browser.storage.local.set({
+        [itemId]: {
+          ...itemData,
+          discountStatus: 'requested',
+          discountAvailable: false,
+          discountRequested: true,
+          discountText: textResult?.text || 'Скидка запрошена'
+        }
+      });
+      
+      setTimeout(() => {
+        browser.tabs.remove(tab.id);
+      }, 3000);
+      
+      return true;
+    } else {
+      console.error('Ошибка при нажатии:', result.error);
+      setTimeout(() => {
+        browser.tabs.remove(tab.id);
+      }, 2000);
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('Ошибка при запросе скидки:', error);
+    return false;
+  }
+}
+
+
+
 // Экспорт в файл
 async function exportToFile() {
   const items = JSON.parse(localStorage.getItem('allItems') || '{}');
@@ -239,7 +298,6 @@ async function exportToFile() {
   }
 }
 
-// Импорт - открываем страницу импорта
 function importFromFile() {
   browser.tabs.create({
     url: browser.runtime.getURL('import.html')
@@ -258,7 +316,6 @@ function deselectAllItems() {
   });
 }
 
-// Функции для импорта/экспорта
 function renderImportExportItems(items) {
   const container = document.getElementById('importExportItems');
   container.innerHTML = '';
@@ -328,18 +385,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tgId = document.getElementById('tgId');
   const themeSelect = document.getElementById('theme');
   
-  // Элементы импорта/экспорта
   const selectAllBtn = document.getElementById('selectAllBtn');
   const deselectAllBtn = document.getElementById('deselectAllBtn');
   const exportBtn = document.getElementById('exportBtn');
   const importBtn = document.getElementById('importBtn');
 
-  // Загружаем тему при открытии
   await loadTheme();
   
   const body = document.body;
   
-  // Загрузка сохраненных настроек
   const { settings } = await browser.storage.local.get('settings');
   if(!settings) {
     try {
@@ -374,7 +428,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     tgId.value = '';
   }
 
-  // Обработчик кнопки настроек
   settingsButton.addEventListener('click', (e) => {
     e.stopPropagation();
     settingsContainer.classList.toggle('visible');
@@ -384,13 +437,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     adjustPopupHeight();
   });
 
-  // Обработчик кнопки импорта/экспорта
   importExportButton.addEventListener('click', (e) => {
     e.stopPropagation();
     importExportContainer.classList.toggle('visible');
     if (importExportContainer.classList.contains('visible')) {
       settingsContainer.classList.remove('visible');
-      // Загружаем товары для экспорта
       browser.storage.local.get().then(allItems => {
         localStorage.setItem('allItems', JSON.stringify(allItems));
         renderImportExportItems(allItems);
@@ -399,7 +450,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     adjustPopupHeight();
   });
 
-  // Обработчики импорта/экспорта
   selectAllBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     selectAllItems();
@@ -420,13 +470,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     importFromFile();
   });
 
-  // Обработчик сохранения
   saveButton.addEventListener('click', async (e) => {
     e.stopPropagation();
     const themeSelect = document.getElementById('theme').value;
     await saveTheme(themeSelect);
     
-    // Сохраняем настройки ВМЕСТЕ с состояниями групп
     const currentSettings = await browser.storage.local.get('settings');
     const currentGroupStates = currentSettings.settings?.groupStates || {};
     
@@ -441,7 +489,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
     
-    // Обновляем интервал проверки
     browser.runtime.sendMessage({
       action: "updateInterval",
       interval: parseInt(checkIntervalInput.value),
@@ -455,7 +502,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     adjustPopupHeight();
   });
 
-  // Автоматическая регулировка высоты
   function adjustPopupHeight() {
     const baseHeight = 450;
     const settingsHeight = settingsContainer.offsetHeight;
@@ -471,7 +517,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     body.style.height = `${baseHeight + additionalHeight}px`;
   }
 
-  // Инициализация высоты
   adjustPopupHeight();
   
   const renderItems = async () => {
@@ -489,11 +534,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         historyLimit = items.settings.checkHistory || 5;
       }
 
-      // Загружаем сохраненные состояния групп
       const groupStates = await loadGroupStates();
       const fragment = document.createDocumentFragment();
 
-      // Группируем элементы по сайтам
       const siteGroups = {};
       
       Object.entries(items)
@@ -506,16 +549,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           siteGroups[siteName].push({ id, data });
         });
 
-      // Сортируем группы сайтов
       const sortedSiteGroups = Object.entries(siteGroups).sort(([siteA], [siteB]) => {
         const orderA = getSiteOrder(siteA);
         const orderB = getSiteOrder(siteB);
         return orderA - orderB;
       });
 
-      // Перебор групп сайтов - ТОЛЬКО ГРУППЫ С ТОВАРАМИ
       for (const [siteName, siteItems] of sortedSiteGroups) {
-        // Пропускаем пустые группы
         if (siteItems.length === 0) {
           continue;
         }
@@ -523,15 +563,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const siteGroupDiv = document.createElement('div');
         siteGroupDiv.className = 'site-group';
         
-        // Определяем начальное состояние группы
         const isInitiallyExpanded = groupStates[siteName] !== false;
         
-        // Заголовок сайта с иконкой сворачивания
         const siteHeader = document.createElement('div');
         siteHeader.className = 'site-header';
         siteHeader.style.backgroundColor = generateSiteColor(siteName);
         
-        // Иконка сворачивания/разворачивания
         const toggleIcon = document.createElement('span');
         toggleIcon.className = 'toggle-icon';
         toggleIcon.textContent = isInitiallyExpanded ? '▼' : '▶';
@@ -539,13 +576,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         toggleIcon.style.cursor = 'pointer';
         toggleIcon.style.fontSize = '12px';
         
-        // Название сайта
         const siteNameSpan = document.createElement('span');
         siteNameSpan.textContent = siteName;
         siteNameSpan.style.cursor = 'pointer';
         siteNameSpan.style.flex = '1';
         
-        // Количество товаров в группе
         const itemCount = document.createElement('span');
         itemCount.className = 'item-count';
         itemCount.textContent = `(${siteItems.length})`;
@@ -557,18 +592,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         siteHeader.appendChild(siteNameSpan);
         siteHeader.appendChild(itemCount);
         
-        // Контейнер для товаров сайта
         const siteItemsContainer = document.createElement('div');
         siteItemsContainer.className = 'site-items';
         siteItemsContainer.style.display = isInitiallyExpanded ? 'block' : 'none';
         
-        // Перебор товаров в группе
         for (const { id, data } of siteItems) {
           try {
             const itemDiv = document.createElement('div');
             itemDiv.className = `site-item${data.hasNewChange ? ' highlight' : ''}`;
             itemDiv.dataset.id = id;
             itemDiv.style.backgroundColor = generateSiteColor(siteName);
+            itemDiv.style.position = 'relative';
 
             const link = document.createElement('a');
             link.className = 'product-link';
@@ -618,23 +652,147 @@ document.addEventListener('DOMContentLoaded', async () => {
               historyList.appendChild(li);
             });
 
+            // Контейнер для кнопок (справа)
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.style.position = 'absolute';
+            buttonsContainer.style.top = '1px';
+            buttonsContainer.style.right = '10px';
+            buttonsContainer.style.display = 'flex';
+            buttonsContainer.style.gap = '5px';
+            buttonsContainer.style.zIndex = '10';
+
+            // Кнопка скидки (только для Ozon)
+
+if (siteName.includes('ozon.ru')) {
+  const discountBtn = document.createElement('button');
+  discountBtn.style.width = '18px';
+  discountBtn.style.height = '16px';
+  discountBtn.style.border = '1px solid #ccc';
+  discountBtn.style.borderRadius = '4px';
+  discountBtn.style.cursor = 'pointer';
+  discountBtn.style.display = 'flex';
+  discountBtn.style.alignItems = 'center';
+  discountBtn.style.justifyContent = 'center';
+  discountBtn.style.fontSize = '14px';
+  discountBtn.style.fontWeight = 'bold';
+  discountBtn.style.padding = '0';
+  discountBtn.style.lineHeight = '1';
+  discountBtn.style.backgroundColor = 'transparent';
+  discountBtn.style.color = '#666';
+  
+  // Состояние 1: Скидка отклонена (красная)
+  if (data.discountStatus === 'rejected') {
+    discountBtn.style.backgroundColor = '#dc3545';
+    discountBtn.style.color = 'white';
+    discountBtn.style.border = 'none';
+    discountBtn.title = 'Скидка отклонена';
+    discountBtn.disabled = true;
+    discountBtn.style.opacity = '0.8';
+    discountBtn.textContent = '✗';
+    discountBtn.style.fontSize = '14px';
+    buttonsContainer.appendChild(discountBtn);
+  }
+  // Состояние 2: Скидка получена (зеленая)
+  else if (data.discountStatus === 'received' || 
+           (data.discountText && data.discountText.includes('Скидка запрошена —'))) {
+    discountBtn.style.backgroundColor = '#28a745';
+    discountBtn.style.color = 'white';
+    discountBtn.style.border = 'none';
+    discountBtn.title = data.discountText || 'Скидка получена';
+    discountBtn.disabled = true;
+    discountBtn.style.opacity = '0.8';
+    discountBtn.textContent = '✓';
+    discountBtn.style.fontSize = '16px';
+    buttonsContainer.appendChild(discountBtn);
+  }
+  // Состояние 3: Скидка запрошена, ожидается (желтая)
+  else if (data.discountStatus === 'requested' || 
+           data.discountRequested === true ||
+           (data.discountText && data.discountText.includes('Скидка запрошена'))) {
+    discountBtn.style.backgroundColor = '#ffc107';
+    discountBtn.style.color = '#000';
+    discountBtn.style.border = 'none';
+    discountBtn.title = data.discountText || 'Скидка запрошена, ожидается ответ';
+    discountBtn.disabled = true;
+    discountBtn.style.opacity = '0.8';
+    discountBtn.textContent = '⏳';
+    buttonsContainer.appendChild(discountBtn);
+  }
+  // Состояние 4: Кнопка доступна (без цвета, с контуром)
+  else if (data.discountAvailable === true || 
+           data.discountStatus === 'available' ||
+           (data.discountText && data.discountText.includes('Хочу скидку'))) {
+    discountBtn.title = 'Запросить скидку';
+    discountBtn.textContent = '%';
+    discountBtn.style.backgroundColor = 'transparent';
+    discountBtn.style.color = '#666';
+    discountBtn.style.border = '1px solid #ccc';
+    
+    discountBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      discountBtn.disabled = true;
+      discountBtn.style.opacity = '0.5';
+      discountBtn.textContent = '⏳';
+      discountBtn.title = 'Запрос отправляется...';
+      
+      const success = await requestDiscount(data.url, id, data);
+      
+      if (success) {
+        discountBtn.style.backgroundColor = '#ffc107';
+        discountBtn.style.color = '#000';
+        discountBtn.style.border = 'none';
+        discountBtn.title = 'Скидка запрошена, ожидается ответ';
+        discountBtn.textContent = '⏳';
+        discountBtn.style.opacity = '0.8';
+      } else {
+        discountBtn.disabled = false;
+        discountBtn.style.opacity = '1';
+        discountBtn.style.backgroundColor = 'transparent';
+        discountBtn.style.color = '#666';
+        discountBtn.style.border = '1px solid #ccc';
+        discountBtn.textContent = '%';
+        discountBtn.title = 'Запросить скидку (ошибка, попробуйте снова)';
+      }
+    });
+    
+    buttonsContainer.appendChild(discountBtn);
+  }
+  // Состояние 5: Кнопки нет - ничего не добавляем
+}	    
+	    
+            // Кнопка удаления
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-btn';
+            deleteBtn.style.width = '18px';
+            deleteBtn.style.height = '16px';
+            deleteBtn.style.border = 'none';
+            deleteBtn.style.background = 'none';
+            deleteBtn.style.cursor = 'pointer';
+            deleteBtn.style.display = 'flex';
+            deleteBtn.style.alignItems = 'center';
+            deleteBtn.style.justifyContent = 'center';
+            deleteBtn.style.padding = '0';
             deleteBtn.dataset.id = id;
-            
+
             const deleteIcon = document.createElement('img');
             deleteIcon.src = '../icons/del.png';
             deleteIcon.alt = 'Удалить';
+            deleteIcon.style.width = '16px';
+            deleteIcon.style.height = '16px';
+            deleteIcon.style.opacity = '0.6';
             deleteBtn.appendChild(deleteIcon);
+
+            buttonsContainer.appendChild(deleteBtn);
 
             itemDiv.append(
               link,
               createPriceRow('Исходная цена:', data.originalPrice),
               createPriceRow('Текущая цена:', data.currentPrice),
-              historySection
+              historySection,
+              buttonsContainer
             );
             historySection.append(historyTitle, historyList);
-            itemDiv.appendChild(deleteBtn);
 
             siteItemsContainer.appendChild(itemDiv);
           } catch (e) {
@@ -642,24 +800,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         }
         
-        // Добавляем обработчик клика на заголовок
         siteHeader.addEventListener('click', (e) => {
-          if (e.target.classList.contains('delete-btn')) return;
+          if (e.target.closest('button')) return;
           
           const isExpanded = siteItemsContainer.style.display !== 'none';
           const newState = !isExpanded;
           
           if (newState) {
-            // Разворачиваем
             siteItemsContainer.style.display = 'block';
             toggleIcon.textContent = '▼';
           } else {
-            // Сворачиваем
             siteItemsContainer.style.display = 'none';
             toggleIcon.textContent = '▶';
           }
           
-          // Сохраняем состояние
           saveGroupState(siteName, newState);
         });
         
@@ -672,12 +826,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const emptyDiv = document.createElement('div');
         emptyDiv.className = 'empty';
         emptyDiv.textContent = 'Нет отслеживаемых товаров';
+        emptyDiv.style.textAlign = 'center';
+        emptyDiv.style.padding = '20px';
+        emptyDiv.style.color = '#668';
         fragment.appendChild(emptyDiv);
       }
 
       itemsContainer.appendChild(fragment);
 
-      // Обработчики удаления
       document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -691,24 +847,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           
           itemElement.remove();
           
-          // Обновляем счетчик товаров в группе
           const itemCount = siteGroup.querySelector('.item-count');
           const remainingItems = siteGroup.querySelectorAll('.site-item').length;
           itemCount.textContent = `(${remainingItems})`;
           
           if (remainingItems === 0) {
-            // УДАЛЯЕМ группу полностью
             siteGroup.remove();
-            // Удаляем состояние группы
             await removeGroupState(siteName);
           }
           
-          // Проверяем есть ли вообще товары во всех группах
           const allItems = document.querySelectorAll('.site-item');
           if (allItems.length === 0) {
             const emptyDiv = document.createElement('div');
             emptyDiv.className = 'empty';
             emptyDiv.textContent = 'Нет отслеживаемых товаров';
+            emptyDiv.style.textAlign = 'center';
+            emptyDiv.style.padding = '20px';
+            emptyDiv.style.color = '#668';
             itemsContainer.appendChild(emptyDiv);
           }
         });
@@ -719,14 +874,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const errorDiv = document.createElement('div');
       errorDiv.className = 'error';
       errorDiv.textContent = `Ошибка загрузки: ${error.message}`;
+      errorDiv.style.color = 'red';
+      errorDiv.style.padding = '10px';
+      errorDiv.style.textAlign = 'center';
       itemsContainer.appendChild(errorDiv);
     }
   };
   
-
   await renderItems();  
   
-  // Обработка подсветки измененных цен
   document.querySelectorAll('.site-item').forEach(async (item) => {
     const id = item.dataset.id;
     const itemData = await browser.storage.local.get(id);

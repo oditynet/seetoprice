@@ -34,6 +34,8 @@ Addon for Chrome (I not have a 5$)
 
 # Change:
 
+В версии 1.3: Добавил кнопку "запросить скидку". Всегда забывал об этой функции. Теперь кнопка показывает возможные состояния: а) нет кнопки - скидки нет б) кнопка белая - скидку можно запросить в) кнопка желтая - скидка запрошена и ожидается подтверждения продавцов г) Кнопка зеленая - скидка одобрена (обычно 5%).
+
 В версии 1.2.2.7: Добавил новый список паттернов для сайта https://www.vseinstrumenti.ru
 
 В версии 1.2.2.6: в windows firefox клиенте постоянно висел снизу скролл. Убрал этот лишний визуальный элемент
@@ -120,3 +122,5 @@ about:debugging#/runtime/this-firefox
 <br>
 
 <img src="https://github.com/oditynet/seetoprice/blob/main/screen2.png" title="1.0.4" width="800" />
+
+<img src="https://github.com/oditynet/seetoprice/blob/main/screen3.jpg" title="1.0.4" width="800" />

@@ -55,10 +55,10 @@ function getCurrencySymbol(currency) {
 function normalizePrice(priceText) {
   if (!priceText) return null;
   
-  // Удаляем только пробелы, сохраняем запятые
-  let normalized = priceText.replace(/\s/g, '');
+  let normalized = priceText
+    .replace(/[\s\u2000-\u200F\u202F\u205F\u3000]/g, '')
+    .replace(/[^\d.,-]/g, '');
   
-  // Находим число с запятой (может быть с точкой или без)
   const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
   if (priceMatch) {
     normalized = priceMatch[0];
@@ -102,10 +102,44 @@ const getSelector = (el) => {
   return path.join(' > ');
 };
 
+// Функция для нажатия на кнопку "Хочу скидку"
+async function clickOzonDiscountButton() {
+  if (!window.location.hostname.includes('ozon.ru')) {
+    return { success: false, error: 'Не Ozon сайт' };
+  }
+  
+  const buttonWidget = document.querySelector('[data-widget="foundCheaperText"]');
+  if (!buttonWidget) {
+    return { success: false, error: 'Кнопка не найдена' };
+  }
+  
+  const button = buttonWidget.querySelector('button');
+  if (!button) {
+    return { success: false, error: 'Элемент button не найден' };
+  }
+  
+  try {
+    button.click();
+    console.log('Кнопка "Хочу скидку" нажата');
+    
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const stillExists = document.querySelector('[data-widget="foundCheaperText"]');
+    
+    return { 
+      success: true, 
+      message: 'Кнопка нажата',
+      buttonStillExists: !!stillExists
+    };
+  } catch (error) {
+    console.error('Ошибка при нажатии на кнопку:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Обработчик контекстного меню
 document.addEventListener('contextmenu', (e) => {
   try {
-    // Специальная логика для vseinstrumenti.ru
     if (window.location.hostname.includes('vseinstrumenti.ru')) {
       let priceElement = null;
       let price = null;
@@ -127,7 +161,6 @@ document.addEventListener('contextmenu', (e) => {
           if (text && /\d/.test(text)) {
             priceElement = element;
             price = text;
-            //console.log('Found vseinstrumenti price with selector:', selector, 'Text:', text);
             break;
           }
         }
@@ -144,11 +177,7 @@ document.addEventListener('contextmenu', (e) => {
         console.log('Vseinstrumenti price found:', lastPriceData);
         return;
       }
-    }
-
-
-
- else if (window.location.hostname.includes('petrovich.ru')) {
+    } else if (window.location.hostname.includes('petrovich.ru')) {
       let priceElement = null;
       let price = null;
       
@@ -185,27 +214,23 @@ document.addEventListener('contextmenu', (e) => {
         console.log('Petrovich price found:', lastPriceData);
         return;
       }
-    }
-
-
-    // Общая логика для других сайтов
-    const targetElement = e.target.closest('[data-qa="product-price"], .price, [itemprop="price"]') || e.target;
-    
-    const rawPrice = targetElement.textContent.trim();
-    const currency = detectCurrency(rawPrice);
-    const currencySymbol = getCurrencySymbol(currency);
-    const normalizedPrice = normalizePrice(rawPrice);
-
-    if (normalizedPrice && normalizedPrice.length > 0) {
-      lastPriceData = {
-        selector: getSelector(targetElement),
-        price: normalizedPrice + ' ' + currencySymbol
-      };
-
-      //console.log('Price data saved:', lastPriceData);
     } else {
-      console.log('No valid price found');
-      lastPriceData = null;
+      const targetElement = e.target.closest('[data-qa="product-price"], .price, [itemprop="price"]') || e.target;
+      
+      const rawPrice = targetElement.textContent.trim();
+      const currency = detectCurrency(rawPrice);
+      const currencySymbol = getCurrencySymbol(currency);
+      const normalizedPrice = normalizePrice(rawPrice);
+
+      if (normalizedPrice && normalizedPrice.length > 0) {
+        lastPriceData = {
+          selector: getSelector(targetElement),
+          price: normalizedPrice + ' ' + currencySymbol
+        };
+      } else {
+        console.log('No valid price found');
+        lastPriceData = null;
+      }
     }
   } catch (error) {
     console.error('Error in contextmenu handler:', error);
@@ -215,6 +240,23 @@ document.addEventListener('contextmenu', (e) => {
 
 // Обработчик сообщений
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "clickOzonDiscount") {
+    clickOzonDiscountButton().then(sendResponse);
+    return true;
+  }
+  
+  if (request.action === "checkOzonDiscount") {
+    const buttonWidget = document.querySelector('[data-widget="foundCheaperText"]');
+    const button = buttonWidget?.querySelector('button');
+    
+    sendResponse({
+      exists: !!button,
+      text: button?.textContent || null,
+      classes: button?.className || null
+    });
+    return true;
+  }
+  
   try {
     if (request.action === "getPriceElementInfo" || request.action === "getPriceData") {
       sendResponse(lastPriceData || null);

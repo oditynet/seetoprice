@@ -16,7 +16,7 @@
     .settings-row:last-child .save-btn { flex: none; white-space: nowrap; }
     
     .delete-btn { position: absolute; top: 10px; right: 10px; cursor: pointer; border: none; background: none; z-index: 10; }
-    .delete-btn img { width: 20px; height: 20px; opacity: 0.6; }      
+    .delete-btn img { width: 16px; height: 16px; opacity: 0.6; }      
     h3 { font-family: Arial; font-size: 16px; margin: 0 0 10px; color: #333; position: relative; z-index: 1; }
     .dev { margin-top: 10px; font-size: 11px; color: #668; text-align: center; margin-bottom: 5px;}
     .history-title { font-size: 12px; color: #668; margin-bottom: 5px; }
@@ -79,48 +79,137 @@
     [data-theme="compact"] .import-export-items { max-height: 270px; padding: 6px; }
     [data-theme="compact"] .dev { margin-top: 5px; margin-bottom: 2px; }
     
-.site-header {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  border-radius: 6px;
-  font-weight: bold;
-  font-size: 14px;
-  color: #4b5f72;
-  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  cursor: pointer;
-  transition: background-color 0.2s;
-  user-select: none;
+    .site-header {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 14px;
+      color: #4b5f72;
+      text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: background-color 0.2s;
+      user-select: none;
+    }
+
+    .site-header:hover {
+      opacity: 0.9;
+    }
+
+    .toggle-icon {
+      transition: transform 0.2s;
+    }
+
+    .site-items {
+      transition: all 0.3s ease;
+    }
+
+    /* Стили для кнопки скидки */
+    .discount-btn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      z-index: 10;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+
+    .discount-btn.available {
+      background-color: #ffc107;
+      color: #000;
+      box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+    }
+
+    .discount-btn.available:hover {
+      background-color: #e0a800;
+      transform: scale(1.1);
+    }
+
+    .discount-btn.requested {
+      background-color: #28a745;
+      color: white;
+      cursor: default;
+      box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+    }
+
+    .discount-btn.received {
+      background-color: #28a745;
+      color: white;
+      cursor: default;
+      box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+    }
+
+    .discount-btn img {
+      width: 14px;
+      height: 14px;
+      filter: brightness(0) invert(1);
+    }
+
+    /* Для компактной темы */
+    [data-theme="compact"] .discount-btn {
+      top: 2px;
+      left: 6px;
+      width: 16px;
+      height: 16px;
+      font-size: 12px;
+    }
+
+    [data-theme="compact"] .discount-btn img {
+      width: 10px;
+      height: 10px;
+    }
+
+    /* Для цветной темы */
+    [data-theme="colorful"] .discount-btn.available {
+      background-color: #ff9800;
+    }
+
+    [data-theme="colorful"] .discount-btn.requested,
+    [data-theme="colorful"] .discount-btn.received {
+      background-color: #4caf50;
+    }
+
+    /* Сдвигаем delete-btn вправо, чтобы освободить место для discount-btn */
+    .delete-btn {
+      right: 10px;
+    }
+
+    [data-theme="compact"] .delete-btn {
+      right: 6px;
+    }
+    
+    
+    /* Стили для контейнера кнопок */
+[data-theme="compact"] .site-item {
+  position: relative;
 }
 
-.site-header:hover {
-  opacity: 0.9;
+[data-theme="compact"] .discount-btn {
+  width: 12px !important;
+  height: 12px !important;
+  font-size: 10px !important;
 }
 
-.toggle-icon {
-  transition: transform 0.2s;
+[data-theme="compact"] .discount-btn span {
+  font-size: 10px !important;
 }
 
-.site-items {
-  transition: all 0.3s ease;
+[data-theme="compact"] .delete-btn img {
+  width: 12px !important;
+  height: 12px !important;
 }
-
-/* Для компактной темы */
-[data-theme="compact"] .site-header {
-  padding: 6px 10px;
-  font-size: 12px;
-  margin-bottom: 4px;
-}
-
-[data-theme="compact"] .toggle-icon {
-  font-size: 10px;
-}
-
-[data-theme="compact"] .item-count {
-  font-size: 10px;
-}    
   </style>
 </head>
 <body>
@@ -169,7 +258,7 @@
 
 <div id="items" class="items-container"></div>
 <script src="popup.js"></script>
-<div class="dev">Seetoprice v1.2.2.7
+<div class="dev">Seetoprice v1.3.a1
 <br>Разработчик: oditynet</div>
 </body>
 </html>
