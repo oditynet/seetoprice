@@ -111,7 +111,7 @@ async function sendTelegramMessage(text, tgToken, tgId) {
 
 function parseOzonPrice(document) {
   try {
-    console.log('Parsing ozon price...');
+    //console.log('Parsing ozon price...');
     
     const priceSelectors = [
       '[data-widget="webPrice"] .tsHeadline600Large',
@@ -163,7 +163,7 @@ function parseOzonPrice(document) {
     
     if (discountWidget) {
       const widgetText = discountWidget.textContent || '';
-      console.log('Текст виджета скидки:', widgetText);
+      //console.log('Текст виджета скидки:', widgetText);
       
       if (widgetText.includes('Скидка одобрена')) {
         discountStatus = 'approved';
@@ -362,7 +362,7 @@ async function getWilbPrice(document) {
               mainPrice = priceMatch[0];
               // Определяем валюту через существующую функцию
               currency = detectCurrency(priceText);
-              console.log('Найдена цена:', mainPrice, 'валюта:', currency);
+             // console.log('Найдена цена:', mainPrice, 'валюта:', currency);
               break;
             }
           }
@@ -410,8 +410,8 @@ async function checkPrices() {
           continue;
         }
 
-        console.log(`\n--- Проверка товара: ${itemId} ---`);
-        console.log(`URL: ${item.url}`);
+    //    console.log(`\n--- Проверка товара: ${itemId} ---`);
+    //    console.log(`URL: ${item.url}`);
 
         const tab = await browser.tabs.create({
           url: item.url,
@@ -497,15 +497,13 @@ async function checkPrices() {
             const finalPrice = priceData.price + ' ' + currencySymbol;
             const previousPrice = priceData.previousPrice ? priceData.previousPrice + ' ' + currencySymbol : null;
 
-            console.log(`Ozon: текущая="${item.currentPrice}", новая="${finalPrice}"`);
+        //    console.log(`Ozon: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
-              console.log(`✅ Цена Ozon изменилась!`);
+        //      console.log(`✅ Цена Ozon изменилась!`);
               await updatePrice(itemId, finalPrice, previousPrice, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } else {
-              console.log(`⏺️ Цена Ozon не изменилась`);
-            }
+            } 
           }
           
           await browser.tabs.remove(tab.id);
@@ -523,15 +521,13 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-            console.log(`Wildberries: текущая="${item.currentPrice}", новая="${finalPrice}"`);
+        //    console.log(`Wildberries: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
-              console.log(`✅ Цена Wildberries изменилась!`);
+              //console.log(`✅ Цена Wildberries изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } else {
-              console.log(`⏺️ Цена Wildberries не изменилась`);
-            }
+            } 
           }
           
           await browser.tabs.remove(tab.id);
@@ -548,14 +544,12 @@ async function checkPrices() {
           if (priceData && priceData.price) {
             const finalPrice = priceData.price + ' ₽';
             
-            console.log(`Vseinstrumenti: текущая="${item.currentPrice}", новая="${finalPrice}"`);
+        //    console.log(`Vseinstrumenti: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
               console.log(`✅ Цена Vseinstrumenti изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } else {
-              console.log(`⏺️ Цена Vseinstrumenti не изменилась`);
             }
           }
           
@@ -574,14 +568,12 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-            console.log(`Lemanapro: текущая="${item.currentPrice}", новая="${finalPrice}"`);
+        //    console.log(`Lemanapro: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
               console.log(`✅ Цена Lemanapro изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } else {
-              console.log(`⏺️ Цена Lemanapro не изменилась`);
             }
           }
           
@@ -600,15 +592,13 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-            console.log(`Petrovich: текущая="${item.currentPrice}", новая="${finalPrice}"`);
+        //    console.log(`Petrovich: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
               console.log(`✅ Цена Petrovich изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } else {
-              console.log(`⏺️ Цена Petrovich не изменилась`);
-            }
+            } 
           }
           
           await browser.tabs.remove(tab.id);
@@ -626,14 +616,12 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-            console.log(`Auto.ru: текущая="${item.currentPrice}", новая="${finalPrice}"`);
+        //    console.log(`Auto.ru: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
               console.log(`✅ Цена Auto.ru изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } else {
-              console.log(`⏺️ Цена Auto.ru не изменилась`);
             }
           }
           
@@ -659,15 +647,13 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-            console.log(`Другой сайт (${url.hostname}): текущая="${item.currentPrice}", новая="${finalPrice}"`);
+        //    console.log(`Другой сайт (${url.hostname}): текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
               console.log(`✅ Цена изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } else {
-              console.log(`⏺️ Цена не изменилась`);
-            }
+            } 
           }
           
           await browser.tabs.remove(tab.id);
@@ -839,7 +825,7 @@ async function updatePrice(itemId, newPrice, previousPrice = null, historylen) {
     
     const originalPriceNum = parseFloat(originalPrice.replace(/[^\d,.]/g, '').replace(',', '.'));
     const newPriceNum = parseFloat(newPrice.replace(/[^\d,.]/g, '').replace(',', '.'));
-    console.log(`Сравнение цен: ${originalPrice} (${originalPriceNum}) vs ${newPrice} (${newPriceNum})`);
+//    console.log(`Сравнение цен: ${originalPrice} (${originalPriceNum}) vs ${newPrice} (${newPriceNum})`);
     if (originalPriceNum >= newPriceNum) {
       updateData = {
         ...item,
