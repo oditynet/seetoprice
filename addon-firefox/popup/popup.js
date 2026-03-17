@@ -518,6 +518,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             link.href = escapeHTML(data.url);
             link.target = '_blank';
             link.textContent = escapeHTML(getProductNameFromUrl(data.url));
+
+            // Если товар закончился - выделяем красным
+if (data.isOutOfStock) {
+  link.style.color = '#dc3545';  // Красный цвет
+  link.style.fontWeight = 'bold';
+  link.title = 'Товар закончился';
+  
+  // Добавить иконку или надпись
+  const outOfStockBadge = document.createElement('span');
+  outOfStockBadge.textContent = ' ⛔';
+  outOfStockBadge.style.color = '#dc3545';
+  outOfStockBadge.style.fontSize = '14px';
+  link.appendChild(outOfStockBadge);
+}
             
             const createPriceRow = (label, price) => {
               const row = document.createElement('div');

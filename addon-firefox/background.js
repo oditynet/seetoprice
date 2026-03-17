@@ -389,7 +389,6 @@ async function getWilbPrice(document) {
   });
 }
 
-
 async function checkPrices() {
   try {
     const items = await browser.storage.local.get();
@@ -410,8 +409,8 @@ async function checkPrices() {
           continue;
         }
 
-    //    console.log(`\n--- Проверка товара: ${itemId} ---`);
-    //    console.log(`URL: ${item.url}`);
+        //console.log(`\n--- Проверка товара: ${itemId} ---`);
+        //console.log(`URL: ${item.url}`);
 
         const tab = await browser.tabs.create({
           url: item.url,
@@ -434,77 +433,110 @@ async function checkPrices() {
         
         if (url.hostname.includes('ozon.ru')) {
           // OZON
-          const [result] = await browser.tabs.executeScript(tab.id, {
-            code: `(${parseOzonPrice.toString()})(document)`
-          });
+          //console.log('>>> Вызываем parseOzonPrice');
+          
+          let result = null;
+          try {
+            [result] = await browser.tabs.executeScript(tab.id, {
+              code: `(${parseOzonPrice.toString()})(document)`
+            });
+            //console.log('>>> Результат executeScript:', result);
+          } catch (e) {
+            console.error('>>> Ошибка executeScript:', e);
+          }
+          
           priceData = result;
           
           if (priceData) {
-            // Обновление статуса скидки
             const updatedItem = { ...item };
-            const oldStatus = item.discountStatus;
             
-            if (priceData.discountStatus) {
-              updatedItem.discountStatus = priceData.discountStatus;
-              updatedItem.discountAvailable = priceData.discountStatus === 'available';
-              updatedItem.discountRequested = priceData.discountStatus === 'requested' || priceData.discountStatus === 'pending';
+            // НОВАЯ ЛОГИКА: определяем наличие товара
+            // Товар закончился, если:
+            // 1. Нет цены (price === null) И
+            // 2. Нет старой цены (previousPrice === null) И
+            // 3. Нет скидки (discountStatus === null)
+            const hasNoPrice = !priceData.price && !priceData.previousPrice;
+            const hasNoDiscount = !priceData.discountStatus;
+            const isOutOfStock = hasNoPrice && hasNoDiscount;
+            
+            // Сохраняем статус наличия
+            updatedItem.isOutOfStock = isOutOfStock;
+            //console.log(`Товар ${isOutOfStock ? '❌ закончился' : '✅ в наличии'} (price: ${priceData.price}, previous: ${priceData.previousPrice}, discount: ${priceData.discountStatus})`);
+            
+            // Если товар есть в наличии, обновляем остальные поля
+            if (!isOutOfStock) {
+              // Обновление статуса скидки
+              const oldStatus = item.discountStatus;
               
-              if (oldStatus !== priceData.discountStatus) {
-                if (priceData.discountStatus === 'approved') {
-                  updatedItem.hasNewDiscount = true;
-                  browser.notifications.create({
-                    type: "basic",
-                    title: "🎉 Скидка одобрена!",
-                    message: `Ваша скидка на товар одобрена!`,
-                    iconUrl: "icons/icon48.png"
-                  });
-                  
-                  if (tgToken && tgId) {
-                    sendTelegramMessage(
-                      `🎉 *Скидка одобрена!*\n\nТовар: ${item.url}`,
-                      tgToken, 
-                      tgId
-                    ).catch(e => console.error('Ошибка Telegram:', e));
+              if (priceData.discountStatus) {
+                updatedItem.discountStatus = priceData.discountStatus;
+                updatedItem.discountAvailable = priceData.discountStatus === 'available';
+                updatedItem.discountRequested = priceData.discountStatus === 'requested' || priceData.discountStatus === 'pending';
+                
+                if (oldStatus !== priceData.discountStatus) {
+                  if (priceData.discountStatus === 'approved') {
+                    updatedItem.hasNewDiscount = true;
+                    browser.notifications.create({
+                      type: "basic",
+                      title: "🎉 Скидка одобрена!",
+                      message: `Ваша скидка на товар одобрена!`,
+                      iconUrl: "icons/icon48.png"
+                    });
+                    
+                    if (tgToken && tgId) {
+                      sendTelegramMessage(
+                        `🎉 *Скидка одобрена!*\n\nТовар: ${item.url}`,
+                        tgToken, 
+                        tgId
+                      ).catch(e => console.error('Ошибка Telegram:', e));
+                    }
+                  } else if (priceData.discountStatus === 'rejected') {
+                    browser.notifications.create({
+                      type: "basic",
+                      title: "❌ Скидка отклонена",
+                      message: `К сожалению, скидка не одобрена.`,
+                      iconUrl: "icons/icon48.png"
+                    });
+                  } else if (priceData.discountStatus === 'available' && oldStatus === 'approved') {
+                    browser.notifications.create({
+                      type: "basic",
+                      title: "🔄 Скидка истекла",
+                      message: `Можно запросить новую скидку.`,
+                      iconUrl: "icons/icon48.png"
+                    });
                   }
-                } else if (priceData.discountStatus === 'rejected') {
-                  browser.notifications.create({
-                    type: "basic",
-                    title: "❌ Скидка отклонена",
-                    message: `К сожалению, скидка не одобрена.`,
-                    iconUrl: "icons/icon48.png"
-                  });
-                } else if (priceData.discountStatus === 'available' && oldStatus === 'approved') {
-                  browser.notifications.create({
-                    type: "basic",
-                    title: "🔄 Скидка истекла",
-                    message: `Можно запросить новую скидку.`,
-                    iconUrl: "icons/icon48.png"
-                  });
                 }
+              } else {
+                delete updatedItem.discountStatus;
+                delete updatedItem.discountAvailable;
+                delete updatedItem.discountRequested;
               }
             } else {
+              // Если товара нет, удаляем все связанные с ценой и скидкой поля
               delete updatedItem.discountStatus;
               delete updatedItem.discountAvailable;
               delete updatedItem.discountRequested;
+              delete updatedItem.hasNewDiscount;
+              // Но оставляем lastChecked, чтобы знать, когда проверяли
             }
             
             await browser.storage.local.set({ [itemId]: updatedItem });
           }
           
-          // СРАВНЕНИЕ ЦЕН ДЛЯ OZON
-          if (priceData && priceData.price) {
+          // СРАВНЕНИЕ ЦЕН ТОЛЬКО ЕСЛИ ТОВАР В НАЛИЧИИ
+          if (priceData && priceData.price && priceData.price !== null && !priceData.isOutOfStock) {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
             const previousPrice = priceData.previousPrice ? priceData.previousPrice + ' ' + currencySymbol : null;
 
-        //    console.log(`Ozon: текущая="${item.currentPrice}", новая="${finalPrice}"`);
+            //console.log(`Ozon: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
-        //      console.log(`✅ Цена Ozon изменилась!`);
+              //console.log(`✅ Цена Ozon изменилась!`);
               await updatePrice(itemId, finalPrice, previousPrice, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
             } 
-          }
+          } 
           
           await browser.tabs.remove(tab.id);
           continue;
@@ -521,10 +553,8 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-        //    console.log(`Wildberries: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
-              //console.log(`✅ Цена Wildberries изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
             } 
@@ -544,13 +574,11 @@ async function checkPrices() {
           if (priceData && priceData.price) {
             const finalPrice = priceData.price + ' ₽';
             
-        //    console.log(`Vseinstrumenti: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
-              console.log(`✅ Цена Vseinstrumenti изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            }
+            } 
           }
           
           await browser.tabs.remove(tab.id);
@@ -568,10 +596,8 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-        //    console.log(`Lemanapro: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
-              console.log(`✅ Цена Lemanapro изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
             }
@@ -592,13 +618,11 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-        //    console.log(`Petrovich: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
-              console.log(`✅ Цена Petrovich изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } 
+            }
           }
           
           await browser.tabs.remove(tab.id);
@@ -616,10 +640,8 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-        //    console.log(`Auto.ru: текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
-              console.log(`✅ Цена Auto.ru изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
             }
@@ -647,13 +669,11 @@ async function checkPrices() {
             const currencySymbol = getCurrencySymbol(priceData.currency || 'RUB');
             const finalPrice = priceData.price + ' ' + currencySymbol;
 
-        //    console.log(`Другой сайт (${url.hostname}): текущая="${item.currentPrice}", новая="${finalPrice}"`);
             
             if (finalPrice && finalPrice !== item.currentPrice) {
-              console.log(`✅ Цена изменилась!`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } 
+            }
           }
           
           await browser.tabs.remove(tab.id);
@@ -662,13 +682,19 @@ async function checkPrices() {
 
       } catch (error) {
         console.error(`Ошибка проверки ${itemId}:`, error);
+        
+        // Пытаемся закрыть вкладку в случае ошибки
+        try {
+          if (tab) await browser.tabs.remove(tab.id);
+        } catch (e) {
+          // Игнорируем ошибки закрытия вкладки
+        }
       }
     }
   } catch (error) {
     console.error('Ошибка в checkPrices:', error);
   }
 }
-
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "seetoprice") {
