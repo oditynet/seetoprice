@@ -133,4 +133,6 @@ about:debugging#/runtime/this-firefox
 
 <img src="https://github.com/oditynet/seetoprice/blob/main/screen2.png" title="1.0.4" width="800" />
 
-<img src="https://github.com/oditynet/seetoprice/blob/main/screen3.jpg" title="1.0.4" width="800" />
+<img src="https://github.com/oditynet/seetoprice/blob/main/screen3.jpg" title="1.3" width="800" />
+
+<img src="https://github.com/oditynet/seetoprice/blob/main/screen4.png" title="1.3.0.4" width="800" />
