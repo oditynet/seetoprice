@@ -272,3 +272,171 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(null);
   }
 });
+
+/// ДНИ НЕДЕЛИ
+// ДНИ НЕДЕЛИ - полная версия с обработкой всех дат
+function addWeekdaysToDeliveryDates() {
+  // Проверяем, что мы на странице заказов Ozon
+  if (!window.location.hostname.includes('ozon.ru') || 
+      !window.location.pathname.includes('/my/orderlist')) {
+    return;
+  }
+  
+  const weekdays = ['вс', 'пон', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  const months = {
+    'января': 0, 'февраля': 1, 'марта': 2, 'апреля': 3,
+    'мая': 4, 'июня': 5, 'июля': 6, 'августа': 7,
+    'сентября': 8, 'октября': 9, 'ноября': 10, 'декабря': 11
+  };  
+  
+// Кэш для уже обработанных элементов
+  const processedElements = new WeakSet();
+  let processedCount = 0;
+  
+  // Функция для добавления дня недели к одной дате
+  function addWeekdayToSingleDate(text, spanElement) {
+    const singleDateMatch = text.match(/(?:Хранится до|Получен|Отменён)\s+(\d+)\s+([а-я]+)/);
+    if (singleDateMatch) {
+      const day = parseInt(singleDateMatch[1]);
+      const monthName = singleDateMatch[2].toLowerCase();
+      const month = months[monthName];
+      
+      if (month !== undefined) {
+        const currentYear = new Date().getFullYear();
+        const date = new Date(currentYear, month, day);
+        const weekday = weekdays[date.getDay()];
+        
+        let prefix = '';
+        if (text.includes('Хранится до')) prefix = 'Хранится до';
+        else if (text.includes('Получен')) prefix = 'Получен';
+        else if (text.includes('Отменён')) prefix = 'Отменён';
+        
+        const newText = `${prefix} ${day} (${weekday}) ${monthName}`;
+        spanElement.textContent = newText;
+        processedElements.add(spanElement);
+        processedCount++;
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  // Функция для добавления дней недели к диапазону дат
+  function addWeekdayToDateRange(text, spanElement) {
+    if (text.includes('(')) return false;
+    
+    let dateMatch = text.match(/(\d+)\s*[–-]\s*(\d+)\s+([а-я]+)/);
+    if (!dateMatch) {
+      dateMatch = text.match(/(\d+)[–-](\d+)\s+([а-я]+)/);
+    }
+    
+    if (dateMatch) {
+      const startDay = parseInt(dateMatch[1]);
+      const endDay = parseInt(dateMatch[2]);
+      const monthName = dateMatch[3].toLowerCase();
+      
+      const month = months[monthName];
+      if (month === undefined) return false;
+      
+      const currentYear = new Date().getFullYear();
+      let startDate = new Date(currentYear, month, startDay);
+      let endDate = new Date(currentYear, month, endDay);
+      
+      if (endDate < startDate) {
+        endDate = new Date(currentYear, month + 1, endDay);
+      }
+      
+      const startWeekday = weekdays[startDate.getDay()];
+      const endWeekday = weekdays[endDate.getDay()];
+      
+      const newText = `${startDay} (${startWeekday}) – ${endDay} (${endWeekday}) ${monthName}`;
+      spanElement.textContent = newText;
+      processedElements.add(spanElement);
+      processedCount++;
+      return true;
+    }
+    return false;
+  }
+  
+  // Обрабатываем все спаны с датами
+  const allSpans = document.querySelectorAll('.z3e_15 span, .y7d_15 span, .z9d_15 span');
+  
+  allSpans.forEach(span => {
+    // Пропускаем уже обработанные
+    if (processedElements.has(span)) return;
+    
+    let text = span.textContent.trim();
+    
+    // Пропускаем время работы
+    if ((text.includes('до') && text.includes(':')) || text.startsWith('Сегодня')) {
+      return;
+    }
+    
+    // Пропускаем если уже есть скобки
+    if (text.includes('(')) return;
+    
+    // Пропускаем если нет цифр
+    if (!/\d/.test(text)) return;
+    
+    // Обрабатываем диапазон дат (например: "15 – 23 марта")
+    if (text.match(/\d+\s*[–-]\s*\d+\s+[а-я]+/)) {
+      addWeekdayToDateRange(text, span);
+    }
+    // Обрабатываем одиночные даты (например: "Хранится до 3 апреля")
+    else if (text.match(/(?:Хранится до|Получен|Отменён)\s+\d+\s+[а-я]+/)) {
+      addWeekdayToSingleDate(text, span);
+    }
+  });
+  
+  if (processedCount > 0) {
+    console.log(`Добавлены дни недели для ${processedCount} элементов`);
+  }
+}
+
+// Запуск с задержками для динамической загрузки
+if (window.location.pathname.includes('/my/orderlist')) {
+  // Функция для безопасного запуска
+  function safeRun() {
+    try {
+      addWeekdaysToDeliveryDates();
+    } catch(e) {
+      console.error('Error in addWeekdaysToDeliveryDates:', e);
+    }
+  }
+  
+  // Запускаем после полной загрузки страницы
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(safeRun, 500);
+      setTimeout(safeRun, 1500);
+      setTimeout(safeRun, 3000);
+    });
+  } else {
+    setTimeout(safeRun, 500);
+    setTimeout(safeRun, 1500);
+    setTimeout(safeRun, 3000);
+  }
+  
+  // Отслеживаем новые загруженные заказы (бесконечный скролл)
+  let debounceTimer;
+  const observer = new MutationObserver(() => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      safeRun();
+    }, 300);
+  });
+  
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  // Также отслеживаем скролл
+  let scrollTimer;
+  window.addEventListener('scroll', () => {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      safeRun();
+    }, 500);
+  });
+}
