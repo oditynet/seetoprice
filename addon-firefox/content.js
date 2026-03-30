@@ -11,7 +11,7 @@ function detectCurrency(priceText) {
   if (priceText.includes('$') || priceText.includes('USD')) return 'USD';
   if (priceText.includes('€') || priceText.includes('EUR')) return 'EUR';
   if (priceText.includes('֏') || priceText.includes('драм')) return 'AMD';
-  if (priceText.includes('сом') || priceText.includes('с')) return 'KGS';
+  if (priceText.includes('сом')/* || priceText.includes('с')*/) return 'KGS';
   if (priceText.includes('сум') || priceText.includes('UZS')) return 'UZS';
   if (priceText.includes('с.')) return 'TJS';
   if (priceText.includes('Kč') || priceText.includes('кр')) return 'CZK';
@@ -30,14 +30,14 @@ function detectCurrency(priceText) {
 function getCurrencySymbol(currency) {
   const symbols = {
     'RUB': '₽',
-    'ƃ': 'BYN',
+//    'ƃ': 'BYN',
     'BYN': 'ƃ', 
     'KZT': '₸',
     'USD': '$',
     'EUR': '€',
     'AMD': '֏',
-    'KGS': 'с',
-    'UZS': 'UZS',
+    'KGS': 'сом',
+    'UZS': 'сум',
     'TJS': 'с.',
     'CZK': 'Kč',
     'PLN': 'zł',
@@ -273,8 +273,7 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-/// ДНИ НЕДЕЛИ
-// ДНИ НЕДЕЛИ - полная версия с обработкой всех дат
+
 function addWeekdaysToDeliveryDates() {
   // Проверяем, что мы на странице заказов Ozon
   if (!window.location.hostname.includes('ozon.ru') || 
@@ -282,62 +281,72 @@ function addWeekdaysToDeliveryDates() {
     return;
   }
   
-  const weekdays = ['вс', 'пон', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  const weekdays = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
   const months = {
     'января': 0, 'февраля': 1, 'марта': 2, 'апреля': 3,
     'мая': 4, 'июня': 5, 'июля': 6, 'августа': 7,
     'сентября': 8, 'октября': 9, 'ноября': 10, 'декабря': 11
-  };  
+  };
   
-// Кэш для уже обработанных элементов
   const processedElements = new WeakSet();
   let processedCount = 0;
   
-  // Функция для добавления дня недели к одной дате
-  function addWeekdayToSingleDate(text, spanElement) {
-    const singleDateMatch = text.match(/(?:Хранится до|Получен|Отменён)\s+(\d+)\s+([а-я]+)/);
-    if (singleDateMatch) {
-      const day = parseInt(singleDateMatch[1]);
-      const monthName = singleDateMatch[2].toLowerCase();
-      const month = months[monthName];
-      
-      if (month !== undefined) {
-        const currentYear = new Date().getFullYear();
-        const date = new Date(currentYear, month, day);
-        const weekday = weekdays[date.getDay()];
-        
-        let prefix = '';
-        if (text.includes('Хранится до')) prefix = 'Хранится до';
-        else if (text.includes('Получен')) prefix = 'Получен';
-        else if (text.includes('Отменён')) prefix = 'Отменён';
-        
-        const newText = `${prefix} ${day} (${weekday}) ${monthName}`;
-        spanElement.textContent = newText;
-        processedElements.add(spanElement);
-        processedCount++;
-        return true;
-      }
-    }
+  // Функция для добавления дня недели к дате
+function addWeekday(element) {
+  let text = element.textContent.trim();
+  
+  // Пропускаем если уже есть день недели
+  /*if (text.includes('(') || /[а-я]{2,}/.test(text) && 
+      (text.includes('пн') || text.includes('вт') || text.includes('ср') || 
+       text.includes('чт') || text.includes('пт') || text.includes('сб') || text.includes('вс'))) {
     return false;
+  }*/
+  
+  // Формат: "До 8 апреля" (В пути, В службе доставки)
+  let match = text.match(/До\s+(\d+)\s+([а-я]+)/);
+  if (match) {
+    const day = parseInt(match[1]);
+    const monthName = match[2].toLowerCase();
+    const month = months[monthName];
+    
+    if (month !== undefined) {
+      const currentYear = new Date().getFullYear();
+      const date = new Date(currentYear, month, day);
+      const weekday = weekdays[date.getDay()];
+      
+      const newText = `До ${day} (${weekday}) ${monthName}`;
+      element.textContent = newText;
+      return true;
+    }
   }
   
-  // Функция для добавления дней недели к диапазону дат
-  function addWeekdayToDateRange(text, spanElement) {
-    if (text.includes('(')) return false;
+  // Формат: "Ожидаем 31 марта" (Передаём в доставку)
+  match = text.match(/Ожидаем\s+(\d+)\s+([а-я]+)/);
+  if (match) {
+    const day = parseInt(match[1]);
+    const monthName = match[2].toLowerCase();
+    const month = months[monthName];
     
-    let dateMatch = text.match(/(\d+)\s*[–-]\s*(\d+)\s+([а-я]+)/);
-    if (!dateMatch) {
-      dateMatch = text.match(/(\d+)[–-](\d+)\s+([а-я]+)/);
+    if (month !== undefined) {
+      const currentYear = new Date().getFullYear();
+      const date = new Date(currentYear, month, day);
+      const weekday = weekdays[date.getDay()];
+      
+      const newText = `Ожидаем ${day} (${weekday}) ${monthName}`;
+      element.textContent = newText;
+      return true;
     }
+  }
+  
+  // Формат: "2–10 апреля" (В пути, В службе доставки)
+  match = text.match(/(\d+)\s*[–-]\s*(\d+)\s+([а-я]+)/);
+  if (match) {
+    const startDay = parseInt(match[1]);
+    const endDay = parseInt(match[2]);
+    const monthName = match[3].toLowerCase();
+    const month = months[monthName];
     
-    if (dateMatch) {
-      const startDay = parseInt(dateMatch[1]);
-      const endDay = parseInt(dateMatch[2]);
-      const monthName = dateMatch[3].toLowerCase();
-      
-      const month = months[monthName];
-      if (month === undefined) return false;
-      
+    if (month !== undefined) {
       const currentYear = new Date().getFullYear();
       let startDate = new Date(currentYear, month, startDay);
       let endDate = new Date(currentYear, month, endDay);
@@ -350,52 +359,64 @@ function addWeekdaysToDeliveryDates() {
       const endWeekday = weekdays[endDate.getDay()];
       
       const newText = `${startDay} (${startWeekday}) – ${endDay} (${endWeekday}) ${monthName}`;
-      spanElement.textContent = newText;
-      processedElements.add(spanElement);
-      processedCount++;
+      element.textContent = newText;
       return true;
     }
-    return false;
   }
   
-  // Обрабатываем все спаны с датами
-  const allSpans = document.querySelectorAll('.z3e_15 span, .y7d_15 span, .z9d_15 span');
+  // Формат: "31 марта" (без префикса)
+  match = text.match(/^(\d+)\s+([а-я]+)$/);
+  if (match) {
+    const day = parseInt(match[1]);
+    const monthName = match[2].toLowerCase();
+    const month = months[monthName];
+    
+    if (month !== undefined) {
+      const currentYear = new Date().getFullYear();
+      const date = new Date(currentYear, month, day);
+      const weekday = weekdays[date.getDay()];
+      
+      const newText = `${day} (${weekday}) ${monthName}`;
+      element.textContent = newText;
+      return true;
+    }
+  }
   
-  allSpans.forEach(span => {
-    // Пропускаем уже обработанные
-    if (processedElements.has(span)) return;
+  return false;
+}  
+  // Ищем все элементы с классом tsCompactControl500Medium
+  // Это класс для всех дат доставки
+  const allDateElements = document.querySelectorAll('.tsCompactControl500Medium');
+  
+  allDateElements.forEach(element => {
+    if (processedElements.has(element)) return;
     
-    let text = span.textContent.trim();
+    const text = element.textContent.trim();
     
-    // Пропускаем время работы
-    if ((text.includes('до') && text.includes(':')) || text.startsWith('Сегодня')) {
-      return;
-    }
-    
-    // Пропускаем если уже есть скобки
-    if (text.includes('(')) return;
-    
-    // Пропускаем если нет цифр
-    if (!/\d/.test(text)) return;
-    
-    // Обрабатываем диапазон дат (например: "15 – 23 марта")
-    if (text.match(/\d+\s*[–-]\s*\d+\s+[а-я]+/)) {
-      addWeekdayToDateRange(text, span);
-    }
-    // Обрабатываем одиночные даты (например: "Хранится до 3 апреля")
-    else if (text.match(/(?:Хранится до|Получен|Отменён)\s+\d+\s+[а-я]+/)) {
-      addWeekdayToSingleDate(text, span);
+    // Проверяем, что это дата (содержит цифры и месяц)
+    if (/\d/.test(text) && 
+        (text.includes('января') || text.includes('февраля') || text.includes('марта') || 
+         text.includes('апреля') || text.includes('мая') || text.includes('июня') || 
+         text.includes('июля') || text.includes('августа') || text.includes('сентября') || 
+         text.includes('октября') || text.includes('ноября') || text.includes('декабря'))) {
+      
+      if (addWeekday(element)) {
+        processedElements.add(element);
+        processedCount++;
+        console.log(`Добавлен день недели для: "${text}" -> "${element.textContent}"`);
+      }
     }
   });
   
   if (processedCount > 0) {
-    console.log(`Добавлены дни недели для ${processedCount} элементов`);
+    console.log(`✅ Добавлены дни недели для ${processedCount} элементов`);
+  } else {
+    console.log('ℹ️ Не найдено элементов для добавления дней недели');
   }
 }
 
 // Запуск с задержками для динамической загрузки
 if (window.location.pathname.includes('/my/orderlist')) {
-  // Функция для безопасного запуска
   function safeRun() {
     try {
       addWeekdaysToDeliveryDates();
@@ -404,39 +425,16 @@ if (window.location.pathname.includes('/my/orderlist')) {
     }
   }
   
-  // Запускаем после полной загрузки страницы
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(safeRun, 500);
-      setTimeout(safeRun, 1500);
-      setTimeout(safeRun, 3000);
-    });
-  } else {
-    setTimeout(safeRun, 500);
-    setTimeout(safeRun, 1500);
-    setTimeout(safeRun, 3000);
-  }
+  // Запускаем несколько раз с задержкой
+  setTimeout(safeRun, 1300);
   
-  // Отслеживаем новые загруженные заказы (бесконечный скролл)
-  let debounceTimer;
+  // Наблюдатель за изменениями DOM
   const observer = new MutationObserver(() => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      safeRun();
-    }, 300);
+    safeRun();
   });
   
   observer.observe(document.body, {
     childList: true,
     subtree: true
-  });
-  
-  // Также отслеживаем скролл
-  let scrollTimer;
-  window.addEventListener('scroll', () => {
-    clearTimeout(scrollTimer);
-    scrollTimer = setTimeout(() => {
-      safeRun();
-    }, 500);
   });
 }
