@@ -153,7 +153,7 @@ document.addEventListener('contextmenu', (e) => {
     if (window.location.hostname.includes('vseinstrumenti.ru')) {
       let priceElement = null;
       let price = null;
-      
+      /*
       const priceSelectors = [
         '.-no-margin_fsyzi_50',
         '.cztff3 > .BVPC2X',
@@ -162,7 +162,25 @@ document.addEventListener('contextmenu', (e) => {
         '.current-price',
         '.product-card-price',
         '[data-qa="price-now"]'
-      ];
+      ];*/
+      const priceSelectors = [
+      '[data-qa="new-price"]',                    // основной селектор для актуальной цены
+      '[data-behavior="price-now"]',              // альтернативный
+      '[data-qa="price-discount"]',               // цена со скидкой (иногда другая)
+      '.-no-margin_fsyzi_50',                     // старый селектор
+      '.cztff3 > .BVPC2X',                        // старый селектор
+      '[class*="price"]',                         // общий поиск
+      '.product-price',                           // общий
+      '.current-price',                           // общий
+      '.product-card-price',                      // общий
+      '[data-behavior="price-now"]',              // поведенческий
+      '.MZu-SS',                                  // старый
+      '.ljRWE3 p',                                // старый
+      '.price-item.js-price-item',                // старый
+      '[itemprop="price"]',                       // schema.org
+      '[class*="price"][class*="now"]',           // комбинация
+      '[class*="Price"][class*="current"]'        // комбинация
+    ];
       
       for (const selector of priceSelectors) {
         const element = document.querySelector(selector);
@@ -386,7 +404,14 @@ function addWeekday(element) {
 }  
   // Ищем все элементы с классом tsCompactControl500Medium
   // Это класс для всех дат доставки
-  const allDateElements = document.querySelectorAll('.tsCompactControl500Medium');
+  const dateSelectors = [
+  '.tsCompactControl500Medium',
+  '.tsCompact500Medium',
+  '.tsHeadline550Medium',
+  '.tsControl500Medium'
+];
+const allDateElements = document.querySelectorAll(dateSelectors.join(','));
+//  const allDateElements = document.querySelectorAll('.tsCompactControl500Medium');
   
   allDateElements.forEach(element => {
     if (processedElements.has(element)) return;
