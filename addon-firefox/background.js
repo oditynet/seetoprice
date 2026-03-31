@@ -666,6 +666,10 @@ async function checkPrices() {
     console.log('[checkPrices] Настройка блокировки ресурсов для Wildberries');
     
     const listener = (details) => {
+    
+    if (details.tabId !== tab.id) {
+      return {}; // не блокируем другие вкладки
+    }
       const url = details.url;
       
         if (url.includes('card.wb.ru') || url.includes('__internal/card')) {
@@ -1358,7 +1362,7 @@ async function sendPriceAlert(item, newPrice, tgToken, tgId) {
   }
 }
 
-browser.alarms.create("priceCheck", { periodInMinutes: 0.2 }); 
+browser.alarms.create("priceCheck", { periodInMinutes: 10 }); 
  console.log('[BACKGROUND] Аларм "priceCheck" создан с интервалом 10 минуты');
 
 browser.alarms.onAlarm.addListener((alarm) => {
