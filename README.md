@@ -34,6 +34,10 @@ Addon for Chrome (I not have a 5$)
 
 # Change:
 
+В версии 1.3.1: Я сделал невозможное. Wb теперь грузится мигом. Ошибки получения цены свелись к нулю. Тестирую дальше (см screen5.png)
+
+Что я сделал: убрал фотографии, медиа и другие элементы, которые грузятся( Бывало некоторые доходили до 65мб!!!). Не знаю это ли полвлияло на существенный прирост в скорости или нет, но теперь страницы открываются моментом. Быстрее Озона.
+
 В версии 1.3.0.8: bug fix 
 
 В версии 1.3.0.7: 
@@ -163,3 +167,5 @@ about:debugging#/runtime/this-firefox
 <img src="https://github.com/oditynet/seetoprice/blob/main/screen3.jpg" title="1.3" width="800" />
 
 <img src="https://github.com/oditynet/seetoprice/blob/main/screen4.png" title="1.3.0.4" width="800" />
+
+<img src="https://github.com/oditynet/seetoprice/blob/main/screen5.png" title="example" width="800" />
