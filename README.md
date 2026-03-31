@@ -34,6 +34,7 @@ Addon for Chrome (I not have a 5$)
 
 # Change:
 
+В версии 1.3.0.8: bug fix 
 
 В версии 1.3.0.7: 
 

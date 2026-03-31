@@ -1,16 +1,4 @@
 // background.js
-
-// ========== НАСТРОЙКИ ОТЛАДКИ ==========
-const DEBUG = 0;  // 1 - показывать логи, 0 - скрыть логи
-// =====================================
-
-if (DEBUG !== 1) {
-  console.log = function() {};
-  console.debug = function() {};
-  console.info = function() {};
-}
-
-
 console.log('[BACKGROUND] Скрипт загружен');
 
 browser.contextMenus.create({
@@ -19,6 +7,37 @@ browser.contextMenus.create({
   contexts: ["all"]  
 });
 
+function detectCurrency(priceText) {
+  console.log(`[detectCurrency] Входные данные: "${priceText}"`);
+  if (!priceText) {
+    console.log('[detectCurrency] Пустой текст, возвращаем RUB');
+    return 'RUB';
+  }
+  
+  let result = 'RUB';
+  if (priceText.includes('₽') || priceText.includes('руб')) result = 'RUB';
+  else if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('ƃ')) result = 'BYN';
+  else if (priceText.includes('₸')) result = 'KZT';
+  else if (priceText.includes('$') || priceText.includes('USD')) result = 'USD';
+  else if (priceText.includes('€') || priceText.includes('EUR')) result = 'EUR';
+  else if (priceText.includes('֏') || priceText.includes('драм')) result = 'AMD';
+  else if (priceText.includes('сом')) result = 'KGS';
+  else if (priceText.includes('сум') || priceText.includes('UZS')) result = 'UZS';
+  else if (priceText.includes('с.')) result = 'TJS';
+  else if (priceText.includes('Kč') || priceText.includes('кр')) result = 'CZK';
+  else if (priceText.includes('zł') || priceText.includes('зл')) result = 'PLN';
+  else if (priceText.includes('lei') || priceText.includes('лей')) result = 'RON';
+  else if (priceText.includes('лв') || priceText.includes('lv')) result = 'BGN';
+  else if (priceText.includes('Ft') || priceText.includes('фт')) result = 'HUF';
+  else if (priceText.includes('kr') || priceText.includes('кр')) result = 'SEK';
+  else if (priceText.includes('CHF') || priceText.includes('фр')) result = 'CHF';
+  else if (priceText.includes('₪')) result = 'ILS';
+  else if (priceText.includes('₼')) result = 'AZN';
+  else if (priceText.includes('₾')) result = 'GEL';
+  
+  console.log(`[detectCurrency] Результат: "${result}" для текста "${priceText}"`);
+  return result;
+}
 
 function getCurrencySymbol(currency) {
   console.log(`[getCurrencySymbol] Входная валюта: "${currency}"`);
@@ -46,6 +65,29 @@ function getCurrencySymbol(currency) {
   const result = symbols[currency] || '₽';
   console.log(`[getCurrencySymbol] Результат: "${result}"`);
   return result;
+}
+
+function normalizePrice(priceText) {
+  console.log(`[normalizePrice] Входной текст: "${priceText}"`);
+  if (!priceText) {
+    console.log('[normalizePrice] Пустой текст, возвращаем null');
+    return null;
+  }
+  
+  let normalized = priceText
+    .replace(/[\s\u2000-\u200F\u202F\u205F\u3000]/g, '')
+    .replace(/[^\d.,-]/g, '');
+  console.log(`[normalizePrice] После удаления символов: "${normalized}"`);
+  
+  const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
+  if (priceMatch) {
+    normalized = priceMatch[0];
+    console.log(`[normalizePrice] Извлечено число: "${normalized}"`);
+  } else {
+    console.log(`[normalizePrice] Число не найдено`);
+  }
+  
+  return normalized;
 }
 
 async function sendTelegramMessage(text, tgToken, tgId) {
@@ -84,44 +126,6 @@ async function sendTelegramMessage(text, tgToken, tgId) {
 }
 
 function parseOzonPrice(document) {
-// ----- ТАКИХ 2 функции 3 клона тут Потому что функции, которые выполняются через browser.tabs.executeScript(), работают в изолированном контексте веб-страницы, а не в контексте расширения.
-  function detectCurrency(priceText) {
-    if (!priceText) return 'RUB';
-    if (priceText.includes('₽') || priceText.includes('руб')) return 'RUB';
-    if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('ƃ')) return 'BYN';
-    if (priceText.includes('₸')) return 'KZT';
-    if (priceText.includes('$') || priceText.includes('USD')) return 'USD';
-    if (priceText.includes('€') || priceText.includes('EUR')) return 'EUR';
-    if (priceText.includes('֏') || priceText.includes('драм')) return 'AMD';
-    if (priceText.includes('сом')) return 'KGS';
-    if (priceText.includes('сум') || priceText.includes('UZS')) return 'UZS';
-    if (priceText.includes('с.')) return 'TJS';
-    if (priceText.includes('Kč') || priceText.includes('кр')) return 'CZK';
-    if (priceText.includes('zł') || priceText.includes('зл')) return 'PLN';
-    if (priceText.includes('lei') || priceText.includes('лей')) return 'RON';
-    if (priceText.includes('лв') || priceText.includes('lv')) return 'BGN';
-    if (priceText.includes('Ft') || priceText.includes('фт')) return 'HUF';
-    if (priceText.includes('kr') || priceText.includes('кр')) return 'SEK';
-    if (priceText.includes('CHF') || priceText.includes('фр')) return 'CHF';
-    if (priceText.includes('₪')) return 'ILS';
-    if (priceText.includes('₼')) return 'AZN';
-    if (priceText.includes('₾')) return 'GEL';
-    return 'RUB';
-  }
-  
-  function normalizePrice(priceText) {
-    if (!priceText) return null;
-    let normalized = priceText
-      .replace(/[\s\u2000-\u200F\u202F\u205F\u3000]/g, '')
-      .replace(/[^\d.,-]/g, '');
-    const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
-    if (priceMatch) {
-      normalized = priceMatch[0];
-    }
-    return normalized;
-  }
-  // ========== КОНЕЦ ВНУТРЕННИХ ФУНКЦИИ==========
-  
   console.log('[parseOzonPrice] Начинаем парсинг Ozon');
   try {
     const priceSelectors = [
@@ -383,68 +387,38 @@ function parseAutoRuPrice(document) {
   }
 }
 
-async function getWilbPrice(document) {
-  // ========== ВНУТРЕННИЕ ФУНКЦИИ (обязательно!) ==========
-  function detectCurrency(priceText) {
-    if (!priceText) return 'RUB';
-    if (priceText.includes('₽') || priceText.includes('руб')) return 'RUB';
-    if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('ƃ')) return 'BYN';
-    if (priceText.includes('₸')) return 'KZT';
-    if (priceText.includes('$') || priceText.includes('USD')) return 'USD';
-    if (priceText.includes('€') || priceText.includes('EUR')) return 'EUR';
-    if (priceText.includes('֏') || priceText.includes('драм')) return 'AMD';
-    if (priceText.includes('сом')) return 'KGS';
-    if (priceText.includes('сум') || priceText.includes('UZS')) return 'UZS';
-    if (priceText.includes('с.')) return 'TJS';
-    if (priceText.includes('Kč') || priceText.includes('кр')) return 'CZK';
-    if (priceText.includes('zł') || priceText.includes('зл')) return 'PLN';
-    if (priceText.includes('lei') || priceText.includes('лей')) return 'RON';
-    if (priceText.includes('лв') || priceText.includes('lv')) return 'BGN';
-    if (priceText.includes('Ft') || priceText.includes('фт')) return 'HUF';
-    if (priceText.includes('kr') || priceText.includes('кр')) return 'SEK';
-    if (priceText.includes('CHF') || priceText.includes('фр')) return 'CHF';
-    if (priceText.includes('₪')) return 'ILS';
-    if (priceText.includes('₼')) return 'AZN';
-    if (priceText.includes('₾')) return 'GEL';
-    return 'RUB';
-  }
-  
-  function normalizePrice(priceText) {
-    if (!priceText) return null;
-    let normalized = priceText
-      .replace(/[\s\u2000-\u200F\u202F\u205F\u3000]/g, '')
-      .replace(/[^\d.,-]/g, '');
-    const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
-    if (priceMatch) {
-      normalized = priceMatch[0];
-    }
-    return normalized;
-  }
-  // ========== КОНЕЦ ВНУТРЕННИХ ФУНКЦИЙ ==========
-  
+async function getWilbPrice(document) { // 3 типа цены. не забудь!
   console.log('[getWilbPrice] Начинаем парсинг Wildberries');
   console.log('[getWilbPrice] URL:', document.location.href);
   
+  // Тип 1: Цена WB Кошелька (самая выгодная) - 3 цены
   const findWalletPrice = () => {
     const walletPriceElement = document.querySelector('.priceBlockWalletPrice--RJGuT h2');
     if (walletPriceElement) {
       const priceText = walletPriceElement.textContent.trim();
       if (priceText && /\d/.test(priceText)) {
-        console.log(`[getWilbPrice] ✅ Цена WB Кошелька: "${priceText}"`);
+        console.log(`[getWilbPrice] ✅ Тип 1 (WB Кошелек): "${priceText}"`);
         return { 
           price: normalizePrice(priceText), 
-          currency: detectCurrency(priceText)
+          currency: detectCurrency(priceText),
+          type: 'wallet'
         };
       }
     }
     return null;
   };
   
+  // Тип 2: Обычная цена с кнопкой WB Кошелька - 3 цены (но берем обычную)
+  // Тип 3: Только обычная цена - 2 цены
   const findRegularPrice = () => {
     const selectors = [
-      '.priceBlockFinalPrice--iToZR',
-      'ins.priceBlockFinalPrice--iToZR',
-      '[class*="priceBlockFinalPrice"]'
+      '.priceBlockFinalPrice--iToZR',           // основной селектор
+      'ins.priceBlockFinalPrice--iToZR',        // с тегом ins
+      '[class*="priceBlockFinalPrice"]',        // любой класс содержащий priceBlockFinalPrice
+      '.price-block__final-price',              // альтернативный
+      '[class*="finalPrice"]',                  // любой класс с finalPrice
+      '.product-price__current',                // общий селектор цены
+      '[data-testid="price"]'                   // data атрибут
     ];
     
     for (const selector of selectors) {
@@ -452,12 +426,14 @@ async function getWilbPrice(document) {
       if (element) {
         const priceText = element.textContent.trim();
         if (priceText && /\d/.test(priceText)) {
+          // Проверяем, что это не цена WB Кошелька (она внутри кнопки)
           const isWalletPrice = element.closest('.priceBlockWalletPrice--RJGuT');
           if (!isWalletPrice) {
-            console.log(`[getWilbPrice] ✅ Обычная цена: "${priceText}"`);
+            console.log(`[getWilbPrice] ✅ Тип 2/3 (обычная цена): "${priceText}"`);
             return { 
               price: normalizePrice(priceText), 
-              currency: detectCurrency(priceText)
+              currency: detectCurrency(priceText),
+              type: 'regular'
             };
           }
         }
@@ -466,10 +442,13 @@ async function getWilbPrice(document) {
     return null;
   };
   
+  // Тип 4: Только одна цена (без скидки)
   const findSinglePrice = () => {
     const selectors = [
       '.priceBlockFinalPrice--iToZR',
-      'ins[class*="priceBlockFinalPrice"]'
+      'ins[class*="priceBlockFinalPrice"]',
+      '.product-price__current',
+      '[class*="finalPrice"]'
     ];
     
     for (const selector of selectors) {
@@ -477,10 +456,11 @@ async function getWilbPrice(document) {
       if (element) {
         const priceText = element.textContent.trim();
         if (priceText && /\d/.test(priceText)) {
-          console.log(`[getWilbPrice] ✅ Одиночная цена: "${priceText}"`);
+          console.log(`[getWilbPrice] ✅ Тип 4 (одиночная цена): "${priceText}"`);
           return { 
             price: normalizePrice(priceText), 
-            currency: detectCurrency(priceText)
+            currency: detectCurrency(priceText),
+            type: 'single'
           };
         }
       }
@@ -490,14 +470,15 @@ async function getWilbPrice(document) {
   
   // ========== ЛОГИКА ПАРСИНГА ==========
   
-  // 1. Сначала ищем цену WB Кошелька
+  // 1. Сначала ищем цену WB Кошелька (самая выгодная)
   let result = findWalletPrice();
   if (result) {
     console.log('[getWilbPrice] Используем цену WB Кошелька');
     return { price: result.price, currency: result.currency };
   }
   
-  // 2. Ждем появления цены WB Кошелька (до 15 секунд)
+  // 2. Если нет WB Кошелька, ждем его появление (до 7 секунд)
+//  console.log('[getWilbPrice] Ждем появление цены WB Кошелька (до 10 сек)...');
   for (let i = 0; i < 75; i++) {
     await new Promise(r => setTimeout(r, 200));
     result = findWalletPrice();
@@ -507,7 +488,7 @@ async function getWilbPrice(document) {
     }
   }
   
-  // 3. Ищем обычную цену
+  // 3. Ищем обычную цену (с учетом, что может быть кнопка WB Кошелька)
   console.log('[getWilbPrice] Ищем обычную цену...');
   result = findRegularPrice();
   if (result) {
@@ -515,7 +496,7 @@ async function getWilbPrice(document) {
     return { price: result.price, currency: result.currency };
   }
   
-  // 4. Ждем обычную цену
+  // 4. Ждем появления обычной цены (до 6 секунд)
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 200));
     result = findRegularPrice();
@@ -525,7 +506,7 @@ async function getWilbPrice(document) {
     }
   }
   
-  // 5. Ищем одиночную цену
+  // 5. Ищем одиночную цену (без скидки)
   console.log('[getWilbPrice] Ищем одиночную цену...');
   result = findSinglePrice();
   if (result) {
@@ -533,7 +514,7 @@ async function getWilbPrice(document) {
     return { price: result.price, currency: result.currency };
   }
   
-  // 6. Ждем одиночную цену
+  // 6. Ждем одиночную цену (до 6 секунд)
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 200));
     result = findSinglePrice();
@@ -658,8 +639,6 @@ async function checkPrices() {
             }
           })
         );
-        // ДОБАВИТЬ ДОПОЛНИТЕЛЬНУЮ ЗАДЕРЖКУ (1-2 секунды) для ВБ пробую
-        await new Promise(r => setTimeout(r, 1500));
 
         const url = new URL(item.url);
         let priceData = null;
@@ -962,46 +941,6 @@ async function checkPrices() {
 }
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
-  // ========== ВНУТРЕННИЕ ФУНКЦИИ (обязательно!) ==========
-  function detectCurrency(priceText) {
-    if (!priceText) return 'RUB';
-    if (priceText.includes('₽') || priceText.includes('руб')) return 'RUB';
-    if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('ƃ')) return 'BYN';
-    if (priceText.includes('₸')) return 'KZT';
-    if (priceText.includes('$') || priceText.includes('USD')) return 'USD';
-    if (priceText.includes('€') || priceText.includes('EUR')) return 'EUR';
-    if (priceText.includes('֏') || priceText.includes('драм')) return 'AMD';
-    if (priceText.includes('сом')) return 'KGS';
-    if (priceText.includes('сум') || priceText.includes('UZS')) return 'UZS';
-    if (priceText.includes('с.')) return 'TJS';
-    if (priceText.includes('Kč') || priceText.includes('кр')) return 'CZK';
-    if (priceText.includes('zł') || priceText.includes('зл')) return 'PLN';
-    if (priceText.includes('lei') || priceText.includes('лей')) return 'RON';
-    if (priceText.includes('лв') || priceText.includes('lv')) return 'BGN';
-    if (priceText.includes('Ft') || priceText.includes('фт')) return 'HUF';
-    if (priceText.includes('kr') || priceText.includes('кр')) return 'SEK';
-    if (priceText.includes('CHF') || priceText.includes('фр')) return 'CHF';
-    if (priceText.includes('₪')) return 'ILS';
-    if (priceText.includes('₼')) return 'AZN';
-    if (priceText.includes('₾')) return 'GEL';
-    return 'RUB';
-  }
-  
-  function normalizePrice(priceText) {
-    if (!priceText) return null;
-    let normalized = priceText
-      .replace(/[\s\u2000-\u200F\u202F\u205F\u3000]/g, '')
-      .replace(/[^\d.,-]/g, '');
-    const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
-    if (priceMatch) {
-      normalized = priceMatch[0];
-    }
-    return normalized;
-  }
-  // ========== КОНЕЦ ВНУТРЕННИХ ФУНКЦИЙ ==========
-
-
-
   console.log(`[contextMenus] Клик по меню: ${info.menuItemId}`);
   
   if (info.menuItemId === "seetoprice") {
@@ -1089,7 +1028,6 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         message: `Цена: ${normalizedPrice} ${currencySymbol}\nМагазин: ${domain}`,
         iconUrl: "icons/icon48.png"
       });
-      console.log('[contextMenus] Уведомление создано, ID:', notificationId)
       
       setTimeout(() => {
         browser.notifications.clear(notificationId);
@@ -1161,47 +1099,6 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 });
 
 async function updatePrice(itemId, newPrice, previousPrice = null, historylen) {
-  // ========== ВНУТРЕННИЕ ФУНКЦИИ (обязательно!) ==========
-  function detectCurrency(priceText) {
-    if (!priceText) return 'RUB';
-    if (priceText.includes('₽') || priceText.includes('руб')) return 'RUB';
-    if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('ƃ')) return 'BYN';
-    if (priceText.includes('₸')) return 'KZT';
-    if (priceText.includes('$') || priceText.includes('USD')) return 'USD';
-    if (priceText.includes('€') || priceText.includes('EUR')) return 'EUR';
-    if (priceText.includes('֏') || priceText.includes('драм')) return 'AMD';
-    if (priceText.includes('сом')) return 'KGS';
-    if (priceText.includes('сум') || priceText.includes('UZS')) return 'UZS';
-    if (priceText.includes('с.')) return 'TJS';
-    if (priceText.includes('Kč') || priceText.includes('кр')) return 'CZK';
-    if (priceText.includes('zł') || priceText.includes('зл')) return 'PLN';
-    if (priceText.includes('lei') || priceText.includes('лей')) return 'RON';
-    if (priceText.includes('лв') || priceText.includes('lv')) return 'BGN';
-    if (priceText.includes('Ft') || priceText.includes('фт')) return 'HUF';
-    if (priceText.includes('kr') || priceText.includes('кр')) return 'SEK';
-    if (priceText.includes('CHF') || priceText.includes('фр')) return 'CHF';
-    if (priceText.includes('₪')) return 'ILS';
-    if (priceText.includes('₼')) return 'AZN';
-    if (priceText.includes('₾')) return 'GEL';
-    return 'RUB';
-  }
-  
-  function normalizePrice(priceText) {
-    if (!priceText) return null;
-    let normalized = priceText
-      .replace(/[\s\u2000-\u200F\u202F\u205F\u3000]/g, '')
-      .replace(/[^\d.,-]/g, '');
-    const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
-    if (priceMatch) {
-      normalized = priceMatch[0];
-    }
-    return normalized;
-  }
-  // ========== КОНЕЦ ВНУТРЕННИХ ФУНКЦИЙ ==========
-
-
-
-
   console.log(`[updatePrice] Начало обновления цены для ${itemId}`);
   console.log(`[updatePrice] Новая цена: "${newPrice}"`);
   console.log(`[updatePrice] История: ${historylen}`);
