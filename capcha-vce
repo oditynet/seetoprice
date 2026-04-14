@@ -1,0 +1,192 @@
+function sendAngle(desiredAngle) {
+    // 1. Берем текущий URL из адресной строки
+    let currentUrl = new URL(window.location.href);
+
+    // 2. Устанавливаем (или заменяем) параметр 'angle' на нужное значение
+    currentUrl.searchParams.set('angle', desiredAngle);
+
+    // 3. Получаем итоговую ссылку
+    const newUrl = currentUrl.toString();
+    
+    console.log(`🎯 Устанавливаем угол: ${desiredAngle}°`);
+    console.log(`🚀 Новая ссылка для отправки: ${newUrl}`);
+
+    // 4. ОТПРАВЛЯЕМ ЗАПРОС НА СЕРВЕР (переходим по ссылке)
+    //    Этот переход и будет отправкой ответа на капчу.
+    window.location.href = newUrl;
+}
+
+
+
+
+
+
+(function() {
+    // Удаляем старую панель, если есть
+    const oldPanel = document.getElementById('captcha_angle_panel');
+    if (oldPanel) oldPanel.remove();
+    
+    // Создаем новую панель
+    const panel = document.createElement('div');
+    panel.id = 'captcha_angle_panel';
+    panel.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0,0,0,0.9);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        font-family: monospace;
+        z-index: 99999;
+        font-size: 14px;
+        min-width: 250px;
+    `;
+    
+    panel.innerHTML = `
+        <div style="margin-bottom: 10px; font-weight: bold;">🎯 Подбор угла капчи</div>
+        <input type="range" id="angleSlider" min="0" max="360" step="1" value="0" style="width: 100%;">
+        <div id="angleValue" style="text-align: center; margin: 10px 0; font-size: 24px; font-weight: bold;">0°</div>
+        <button id="submitAngle" style="width: 100%; padding: 8px; background: #07f; border: none; color: white; border-radius: 5px; cursor: pointer;">✅ Отправить этот угол</button>
+        <div id="status" style="margin-top: 10px; font-size: 12px; color: #aaa;"></div>
+    `;
+    
+    document.body.appendChild(panel);
+    
+    const slider = document.getElementById('angleSlider');
+    const angleValue = document.getElementById('angleValue');
+    const submitBtn = document.getElementById('submitAngle');
+    const statusDiv = document.getElementById('status');
+    
+    // Функция поворота картинки
+    function rotateImage(angle) {
+        const img = document.querySelector('.captcha-img img, [class*="captcha"] img, .captcha__image');
+        if (img) {
+            img.style.transform = `rotate(${angle}deg)`;
+            img.style.transition = 'transform 0.1s ease';
+        } else {
+            statusDiv.innerHTML = '⚠️ Картинка не найдена';
+        }
+        angleValue.textContent = `${angle}°`;
+    }
+    
+    slider.addEventListener('input', (e) => {
+        const angle = parseInt(e.target.value);
+        rotateImage(angle);
+        statusDiv.innerHTML = `🔄 Превью: ${angle}°`;
+    });
+    
+    submitBtn.addEventListener('click', () => {
+        const angle = parseInt(slider.value);
+        statusDiv.innerHTML = `🚀 Отправка угла ${angle}°...`;
+        
+        const url = new URL(window.location.href);
+        url.searchParams.set('angle', angle);
+        
+        setTimeout(() => {
+            window.location.href = url.toString();
+        }, 500);
+    });
+    
+    // Текущий угол из URL
+    const currentUrl = new URL(window.location.href);
+    const currentAngle = currentUrl.searchParams.get('angle');
+    if (currentAngle) {
+        slider.value = currentAngle;
+        rotateImage(parseInt(currentAngle));
+        statusDiv.innerHTML = `📌 Текущий угол из URL: ${currentAngle}°`;
+    }
+    
+    console.log("✅ Панель создана! Двигай ползунок и смотри на картинку");
+})();
+
+
+
+
+
+
+
+
+
+
+// Функция для эмуляции движения ползунка на нужный угол
+function emulateSliderMovement(targetAngle) {
+    // Находим элементы капчи
+    const slider = document.querySelector('.captcha-control-button, [class*="control-button"]');
+    const track = document.querySelector('.captcha-control, [class*="control"]');
+    
+    if (!slider || !track) {
+        console.log("❌ Элементы капчи не найдены");
+        return;
+    }
+    
+    // Вычисляем позицию для нужного угла
+    // Из кода: angle = 360 / maxPath * position
+    // position = (angle / 360) * maxPath
+    const trackRect = track.getBoundingClientRect();
+    const sliderRect = slider.getBoundingClientRect();
+    const maxPath = trackRect.width - sliderRect.width;
+    const targetPosition = (targetAngle / 360) * maxPath;
+    
+    console.log(`🎯 Целевой угол: ${targetAngle}°, позиция: ${targetPosition}px`);
+    
+    // Начальная позиция
+    const startX = sliderRect.left + sliderRect.width / 2;
+    const startY = sliderRect.top + sliderRect.height / 2;
+    const endX = trackRect.left + targetPosition + sliderRect.width / 2;
+    
+    // Эмулируем события мыши
+    function dispatchEvent(element, type, clientX, clientY) {
+        const event = new PointerEvent(type, {
+            clientX, clientY,
+            pointerId: 1,
+            bubbles: true,
+            cancelable: true,
+            pointerType: 'mouse',
+            isPrimary: true
+        });
+        element.dispatchEvent(event);
+        return event;
+    }
+    
+    // Начинаем движение
+    console.log("🖱️ Начинаем движение...");
+    dispatchEvent(slider, 'pointerdown', startX, startY);
+    
+    // Двигаем с промежуточными шагами (это важно! капча проверяет траекторию)
+    const steps = 20;
+    const stepTime = 15; // ms
+    
+    for (let i = 0; i <= steps; i++) {
+        setTimeout(() => {
+            const progress = i / steps;
+            const currentX = startX + (endX - startX) * progress;
+            // Добавляем небольшой шум для реалистичности
+            const noiseX = (Math.random() - 0.5) * 2;
+            const noiseY = (Math.random() - 0.5) * 1;
+            dispatchEvent(slider, 'pointermove', currentX + noiseX, startY + noiseY);
+        }, i * stepTime);
+    }
+    
+    // Завершаем движение
+    setTimeout(() => {
+        console.log("✅ Завершаем движение...");
+        dispatchEvent(slider, 'pointerup', endX, startY);
+        
+        // После движения капча сама отправит угол
+        console.log(`🚀 Движение завершено. Капча отправит угол ${targetAngle}°`);
+    }, (steps + 1) * stepTime);
+}
+
+// Использование:
+emulateSliderMovement(51); // Повернуть на 51 градус
+
+
+
+
+
+
+
+
+
+
