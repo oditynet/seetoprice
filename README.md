@@ -15,6 +15,8 @@ https://addons.mozilla.org/ru/firefox/addon/seetoprice/
 
 Addon for Chrome (I not have a 5$)
 
+https://www.youtube.com/watch?v=CMbLMl-Z-nI
+
 <a name="readme-left"></a>
 <div align="left">
 
