@@ -384,171 +384,94 @@ function parseAutoRuPrice(document) {
 }
 
 
-async function getWilbPrice(document) {
-  // ========== ВНУТРЕННИЕ ФУНКЦИИ ==========
-  function detectCurrency(priceText) {
-    if (!priceText) return 'RUB';
-    if (priceText.includes('₽') || priceText.includes('руб')) return 'RUB';
-    if (priceText.includes('BYN') || priceText.includes('р.') || priceText.includes('ƃ')) return 'BYN';
-    if (priceText.includes('₸')) return 'KZT';
-    if (priceText.includes('$') || priceText.includes('USD')) return 'USD';
-    if (priceText.includes('€') || priceText.includes('EUR')) return 'EUR';
-    if (priceText.includes('֏') || priceText.includes('драм')) return 'AMD';
-    if (priceText.includes('сом')) return 'KGS';
-    if (priceText.includes('сум') || priceText.includes('UZS')) return 'UZS';
-    if (priceText.includes('с.')) return 'TJS';
-    if (priceText.includes('Kč') || priceText.includes('кр')) return 'CZK';
-    if (priceText.includes('zł') || priceText.includes('зл')) return 'PLN';
-    if (priceText.includes('lei') || priceText.includes('лей')) return 'RON';
-    if (priceText.includes('лв') || priceText.includes('lv')) return 'BGN';
-    if (priceText.includes('Ft') || priceText.includes('фт')) return 'HUF';
-    if (priceText.includes('kr') || priceText.includes('кр')) return 'SEK';
-    if (priceText.includes('CHF') || priceText.includes('фр')) return 'CHF';
-    if (priceText.includes('₪')) return 'ILS';
-    if (priceText.includes('₼')) return 'AZN';
-    if (priceText.includes('₾')) return 'GEL';
-    return 'RUB';
-  }
-  
-  function normalizePrice(priceText) {
-    if (!priceText) return null;
-    let normalized = priceText
-      .replace(/[\s\u2000-\u200F\u202F\u205F\u3000]/g, '')
-      .replace(/[^\d.,-]/g, '');
-    const priceMatch = normalized.match(/(\d+[,.]?\d*)/);
-    if (priceMatch) {
-      normalized = priceMatch[0];
-    }
-    return normalized;
-  }
-  // ========== КОНЕЦ ВНУТРЕННИХ ФУНКЦИЙ ==========
-  
-  console.log('[getWilbPrice] Начинаем парсинг Wildberries');
-  console.log('[getWilbPrice] URL:', document.location.href);
-  
-  // Функции поиска
-  const findWalletPrice = () => {
-    const walletPriceElement = document.querySelector('.priceBlockWalletPrice--RJGuT h2');
-    if (walletPriceElement) {
-      const priceText = walletPriceElement.textContent.trim();
-      if (priceText && /\d/.test(priceText)) {
-        console.log(`[getWilbPrice] ✅ Цена WB Кошелька: "${priceText}"`);
-        return { 
-          price: normalizePrice(priceText), 
-          currency: detectCurrency(priceText)
-        };
+
+async function getWilbPrice(urlOrTabId) {
+  console.log('[getWilbPrice] Запрашиваем цену со страницы Wildberries через инжекцию рабочего кода...');
+
+  try {
+    let tabId = null;
+
+    if (typeof urlOrTabId === 'number') {
+      tabId = urlOrTabId;
+    } else {
+      const tabs = await browser.tabs.query({ url: urlOrTabId });
+      if (tabs && tabs.length > 0) {
+        tabId = tabs[0].id;
       }
     }
-    return null;
-  };
-  
-  const findRegularPrice = () => {
-    const selectors = [
-      '.priceBlockFinalPrice--iToZR',
-      'ins.priceBlockFinalPrice--iToZR',
-      '[class*="priceBlockFinalPrice"]'
-    ];
-    
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element) {
-        const priceText = element.textContent.trim();
-        if (priceText && /\d/.test(priceText)) {
-          const isWalletPrice = element.closest('.priceBlockWalletPrice--RJGuT');
-          if (!isWalletPrice) {
-            console.log(`[getWilbPrice] ✅ Обычная цена: "${priceText}"`);
-            return { 
-              price: normalizePrice(priceText), 
-              currency: detectCurrency(priceText)
-            };
+
+    if (!tabId) {
+      console.error('❌ Не удалось найти ID фоновой вкладки Wildberries');
+      return { price: null, currency: 'RUB' };
+    }
+
+    // Даем вкладке 3.5 секунды. WB в фоне рендерится медленнее, нужно дождаться появления тегов ins или классов price.
+    await new Promise(resolve => setTimeout(resolve, 3500));
+
+    // Инжектируем ТВОЙ рабочий код парсинга прямо во вкладку
+    const [executedResult] = await browser.tabs.executeScript(tabId, {
+      code: `
+        (() => {
+        
+        if (document.querySelector('.blockedPage--rnFSU')) {
+            return "VPN_BLOCKED";
           }
-        }
-      }
+        
+          const priceElements = document.querySelectorAll('ins, [class*="price"]');
+          
+          for (const el of priceElements) {
+            if (el.querySelector('ins') || el.closest('del, s, strike')) continue;
+
+            const text = el.textContent.trim();
+
+            if (text.includes('₽')) {
+              const cleanText = text.split('₽')[0]; 
+              const digits = cleanText.replace(/[^\\d]/g, ''); // Экранируем слэш для передачи в строке
+
+              if (digits && digits.length >= 2 && digits.length <= 7) {
+                return parseInt(digits, 10);
+              }
+            }
+          }
+          return null;
+        })();
+      `
+    });
+
+// ЕСЛИ НАШЛИ ЗАГЛУШКУ VPN — СРАЗУ ПОКАЗЫВАЕМ СИСТЕМНЫЙ ПУШ
+    if (executedResult === "VPN_BLOCKED") {
+      console.warn('⚠️ [getWilbPrice] Фоновая вкладка заблокирована VPN! Выводим системный пуш.');
+      
+      browser.notifications.create('wb-vpn-notification', {
+        type: 'basic',
+        // Укажите путь к реальной иконке вашего расширения (например, 48x48 пикселей)
+        iconUrl: browser.runtime.getURL('icons/icon48.png'), 
+        title: 'Wildberries: Доступ ограничен',
+        message: 'Расширение не может проверить цены, так как Wildberries заблокировал страницу. Пожалуйста, выключите VPN.',
+        priority: 2 // Максимальный приоритет, чтобы уведомление точно всплыло
+      });
+
+      return { price: null, currency: 'RUB' };
     }
-    return null;
-  };
-  
-  const findSinglePrice = () => {
-    const selectors = [
-      '.priceBlockFinalPrice--iToZR',
-      'ins[class*="priceBlockFinalPrice"]'
-    ];
-    
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element) {
-        const priceText = element.textContent.trim();
-        if (priceText && /\d/.test(priceText)) {
-          console.log(`[getWilbPrice] ✅ Одиночная цена: "${priceText}"`);
-          return { 
-            price: normalizePrice(priceText), 
-            currency: detectCurrency(priceText)
-          };
-        }
-      }
+
+
+    if (executedResult) {
+      console.log(`🔥 [WB EXECUTE SUCCESS] Цена успешно спарсена твоим кодом: ${executedResult} ₽`);
+      return {
+        price: String(executedResult),
+        currency: "RUB"
+      };
+    } else {
+      console.warn('❌ Твой код вернул null. Скорее всего, вкладка в фоне не успела отрендерить элементы цены за отведенное время.');
+      return { price: null, currency: 'RUB' };
     }
-    return null;
-  };
-  
-  // ========== ОСНОВНАЯ ЛОГИКА ==========
-  
-  // 1. Сначала ищем цену WB Кошелька
-  let result = findWalletPrice();
-  if (result) {
-    console.log('[getWilbPrice] Цена WB Кошелька найдена сразу');
-    return result;
+
+  } catch (err) {
+    console.error('❌ Ошибка при принудительном выполнении кода на вкладке WB:', err);
+    return { price: null, currency: 'RUB' };
   }
-  
-  // 2. Ждем появления цены WB Кошелька (до 15 секунд)
-  console.log('[getWilbPrice] Ждем появление цены WB Кошелька...');
-  for (let i = 0; i < 75; i++) {
-    await new Promise(r => setTimeout(r, 200));
-    result = findWalletPrice();
-    if (result) {
-      console.log(`[getWilbPrice] ✅ Цена WB Кошелька найдена через ${(i+1)*200}мс`);
-      return result;
-    }
-  }
-  
-  // 3. Если WB Кошелька нет — ищем обычную цену
-  console.log('[getWilbPrice] Ищем обычную цену...');
-  result = findRegularPrice();
-  if (result) {
-    console.log('[getWilbPrice] Используем обычную цену');
-    return result;
-  }
-  
-  // 4. Ждем обычную цену (до 6 секунд)
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 200));
-    result = findRegularPrice();
-    if (result) {
-      console.log(`[getWilbPrice] Обычная цена найдена через ${(i+1)*200}мс`);
-      return result;
-    }
-  }
-  
-  // 5. Ищем одиночную цену
-  console.log('[getWilbPrice] Ищем одиночную цену...');
-  result = findSinglePrice();
-  if (result) {
-    console.log('[getWilbPrice] Используем одиночную цену');
-    return result;
-  }
-  
-  // 6. Ждем одиночную цену (до 6 секунд)
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 200));
-    result = findSinglePrice();
-    if (result) {
-      console.log(`[getWilbPrice] Одиночная цена найдена через ${(i+1)*200}мс`);
-      return result;
-    }
-  }
-  
-  console.log('[getWilbPrice] ❌ Цена не найдена');
-  return { price: null, currency: null };
 }
+
 
 async function checkPrices() {
   console.log('\n========== [checkPrices] НАЧАЛО ПРОВЕРКИ ==========');
@@ -658,156 +581,38 @@ async function checkPrices() {
           await browser.tabs.remove(tab.id);
           continue;
 
-        } else if (url.hostname.includes('wildberries.ru')) {
-        
-        
-// ========== НАСТРОЙКА БЛОКИРОВКИ РЕСУРСОВ ==========
-  try {
-    console.log('[checkPrices] Настройка блокировки ресурсов для Wildberries');
-    
-    const listener = (details) => {
-    
-    if (details.tabId !== tab.id) {
-      return {}; // не блокируем другие вкладки
-    }
-      const url = details.url;
-      
-        if (url.includes('card.wb.ru') || url.includes('__internal/card')) {
-    console.log(`[checkPrices] ✅ РАЗРЕШАЕМ API: ${url.substring(0, 80)}...`);
-    return {};
-  }
-  
-  // Разрешаем основной HTML и JS (обязательно)
-  if (details.type === "main_frame" || details.type === "script") {
-    console.log(`[checkPrices] ✅ РАЗРЕШАЕМ JS/HTML: ${url.substring(0, 80)}...`);
-    return {};
-  }
-      
-      // Блокируем аналитику
-      if (url.includes('a.wb.ru')) {
-        console.log(`[checkPrices] Блокируем аналитику: ${url}`);
-        return { cancel: true };
-      }
-      
-      // Блокируем хранилище пользователя
-      if (url.includes('user-storage-01dl.wb.ru')) {
-        console.log(`[checkPrices] Блокируем user-storage: ${url}`);
-        return { cancel: true };
-      }
-      
-      // Блокируем чаты
-      if (url.includes('chat-prod.wildberries.ru') || url.includes('chat.wildberries.ru')) {
-        console.log(`[checkPrices] Блокируем чат: ${url}`);
-        return { cancel: true };
-      }
-      
-      // Блокируем изображения
-      if (details.type === "image") {
-        console.log(`[checkPrices] Блокируем изображение: ${url}`);
-        return { cancel: true };
-      }
-      
-      // Блокируем CSS
-     /* if (details.type === "stylesheet") {
-        console.log(`[checkPrices] Блокируем CSS: ${url}`);
-        return { cancel: true };
-      }*/
-      
-      // Блокируем шрифты
-      if (details.type === "font") {
-        console.log(`[checkPrices] Блокируем шрифт: ${url}`);
-        return { cancel: true };
-      }
-      
-      // Блокируем медиа
-      if (details.type === "media") {
-        console.log(`[checkPrices] Блокируем медиа: ${url}`);
-        return { cancel: true };
-      }
-      
-      // Блокируем вебсокеты
-      if (details.type === "websocket") {
-        console.log(`[checkPrices] Блокируем websocket: ${url}`);
-        return { cancel: true };
-      }
-      
-      // Блокируем SVG
-      if (url.includes('.svg') || url.includes('data:image/svg')) {
-        console.log(`[checkPrices] Блокируем SVG: ${url}`);
-        return { cancel: true };
-      }
-      
-      // Блокируем медиафайлы по расширению
-      if (url.match(/\.(webp|png|jpg|jpeg|gif|ico|woff2?|ttf|eot)(\?|$)/i)) {
-        console.log(`[checkPrices] Блокируем медиафайл: ${url}`);
-        return { cancel: true };
-      }
-      
-      // Разрешаем остальное
-      console.log(`[checkPrices] Разрешаем: ${url.substring(0, 100)}...`);
-      return {};
-    };
-    
-    browser.webRequest.onBeforeRequest.addListener(
-      listener,
-      { 
-        urls: [
-          "*://*.wildberries.ru/*",
-          "*://*.wbbasket.ru/*", 
-          "*://*.wbstatic.net/*",
-          "*://*.wbservice.ru/*"
-        ] 
-      },
-      ["blocking"]
-    );
-    
-    tab.blockingListener = listener;
-    
-  } catch (blockError) {
-    console.error('[checkPrices] Ошибка настройки блокировки:', blockError);
-          
-}
-        
-        
-        
-        
-        
-        
-        
-          console.log('[checkPrices] Сайт: Wildberries.ru');
-          
-          const [result] = await browser.tabs.executeScript(tab.id, {
-            code: `(${getWilbPrice.toString()})(document)`
-          });
-          priceData = result;
-          console.log('[checkPrices] Получены данные с Wildberries:', priceData);
-          
-          if (priceData && priceData.currency !== item.currency) {
-            console.log(`[checkPrices] Валюта не совпадает: ${priceData.currency} vs ${item.currency}, пропускаем`);
-            await browser.tabs.remove(tab.id);
-            continue;
-          }
-          
-          if (priceData && priceData.price) {
-            const currencySymbol = getCurrencySymbol(priceData.currency);
-            const finalPrice = priceData.price + ' ' + currencySymbol;
-            console.log(`[checkPrices] Сформирована финальная цена: "${finalPrice}"`);
-            console.log(`[checkPrices] Сравнение: "${finalPrice}" === "${item.currentPrice}"? ${finalPrice === item.currentPrice}`);
-            
-            if (finalPrice && finalPrice !== item.currentPrice) {
-              console.log(`[checkPrices] Цена изменилась! Было: "${item.currentPrice}", Стало: "${finalPrice}"`);
-              await updatePrice(itemId, finalPrice, null, historylen);
-              sendPriceAlert(item, finalPrice, tgToken, tgId);
-            } else {
-              console.log('[checkPrices] Цена не изменилась');
-            }
-          } else {
-            console.log('[checkPrices] Цена не найдена на странице');
-          }
-          
-          await browser.tabs.remove(tab.id);
-          continue;
 
+} else if (url.hostname.includes('wildberries.ru')) {
+          console.log('[checkPrices] Сайт: Wildberries.ru (запрос через API)');
+          
+          // Закрываем созданную вкладку сразу, так как берем данные по API напрямую
+          //if (tab && tab.id) {
+        //    await browser.tabs.remove(tab.id);
+          //}
+
+priceData = await getWilbPrice(tab.id); // Передаем ID созданной вкладки
+  console.log('[checkPrices] Получены данные с Wildberries:', priceData);
+
+  if (priceData && priceData.price) {
+    const currencySymbol = getCurrencySymbol(priceData.currency);
+    const finalPrice = priceData.price + ' ' + currencySymbol;
+    console.log(`[checkPrices] Сформирована финальная цена: "${finalPrice}"`);
+    
+    if (finalPrice !== item.currentPrice) {
+      console.log(`[checkPrices] Цена изменилась! Было: "${item.currentPrice}", Стало: "${finalPrice}"`);
+      await updatePrice(itemId, finalPrice, null, historylen);
+      sendPriceAlert(item, finalPrice, tgToken, tgId);
+    } else {
+      console.log('[checkPrices] Цена не изменилась');
+    }
+  } else {
+    console.log('[checkPrices] Цена не найдена в переменной страницы');
+  }
+
+  // Вкладка закрывается здесь, после выполнения парсинга
+  await browser.tabs.remove(tab.id); 
+  continue;          
+          
         } else if (url.hostname.includes('vseinstrumenti.ru')) {
           console.log('[checkPrices] Сайт: Vseinstrumenti.ru');
           const [result] = await browser.tabs.executeScript(tab.id, {
@@ -974,7 +779,7 @@ async function checkPrices() {
             console.log(`[checkPrices] Сформирована финальная цена: "${finalPrice}"`);
             console.log(`[checkPrices] Сравнение: "${finalPrice}" === "${item.currentPrice}"? ${finalPrice === item.currentPrice}`);
             
-            if (finalPrice && finalPrice !== item.currentPrice) {
+            if (finalPrice && finalPrice !== item.currentPrice) {  
               console.log(`[checkPrices] Цена изменилась! Было: "${item.currentPrice}", Стало: "${finalPrice}"`);
               await updatePrice(itemId, finalPrice, null, historylen);
               sendPriceAlert(item, finalPrice, tgToken, tgId);
@@ -1362,7 +1167,7 @@ async function sendPriceAlert(item, newPrice, tgToken, tgId) {
   }
 }
 
-browser.alarms.create("priceCheck", { periodInMinutes: 10 }); 
+browser.alarms.create("priceCheck", { periodInMinutes: 10 });  
  console.log('[BACKGROUND] Аларм "priceCheck" создан с интервалом 10 минуты');
 
 browser.alarms.onAlarm.addListener((alarm) => {

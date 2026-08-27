@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "seetoprice",
-  "version": "1.3.1.1",
+  "version": "1.3.2",
   "permissions": [
     "contextMenus",
     "storage",
@@ -15,7 +15,8 @@
      "downloads"
   ],
   "web_accessible_resources": [
-    "import.html"
+    "import.html",
+    "wb_inject.js"
   ],
   "background": {
     "scripts": [

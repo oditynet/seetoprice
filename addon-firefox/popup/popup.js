@@ -303,8 +303,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const saveButton = document.getElementById('saveSettings');
   const checkIntervalInput = document.getElementById('checkInterval');
   const checkHistoryInput = document.getElementById('checkHistory');
-  const tgToken = document.getElementById('tgToken');
-  const tgId = document.getElementById('tgId');
+  //const tgToken = document.getElementById('tgToken');
+ // const tgId = document.getElementById('tgId');
   const themeSelect = document.getElementById('theme');
   const selectAllBtn = document.getElementById('selectAllBtn');
   const deselectAllBtn = document.getElementById('deselectAllBtn');
@@ -330,10 +330,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   checkIntervalInput.value = settings?.checkInterval || 10;
   checkHistoryInput.value = settings?.checkHistory || 5;
-  tgToken.value = settings?.tgToken || '';
+  //tgToken.value = settings?.tgToken || '';
   themeSelect.value = settings?.theme || 'light';
   
-  if (tgToken.value && tgToken.value.trim() !== '') {
+  /*if (tgToken.value && tgToken.value.trim() !== '') {
     try {
       tgId.value = await findTelegramChatId(tgToken.value);
     } catch (error) {
@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   } else {
     tgId.value = '';
-  }
+  }*/
 
   settingsButton.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -398,8 +398,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       settings: {
         checkInterval: parseInt(checkIntervalInput.value) || 10,
         checkHistory: parseInt(checkHistoryInput.value) || 5,
-        tgToken: tgToken.value || '',
-        tgId: await findTelegramChatId(tgToken.value) || '',
+        //tgToken: tgToken.value || '',
+        //tgId: await findTelegramChatId(tgToken.value) || '',
         theme: themeVal || 'light',
         groupStates: currentGroupStates
       }
@@ -409,8 +409,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       action: "updateInterval",
       interval: parseInt(checkIntervalInput.value),
       history: parseInt(checkHistoryInput.value),
-      tgToken: tgToken.value,
-      tgId: tgToken.value ? tgId.value : '',
+      //tgToken: tgToken.value,
+      //tgId: tgToken.value ? tgId.value : '',
       theme: themeVal
     });
     
