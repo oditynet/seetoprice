@@ -123,6 +123,7 @@ async function removeGroupState(groupName) {
 
 async function findTelegramChatId(token, expectedMessage = '/start') {
   if (!token) return '';
+  if (!/^\d+:[A-Za-z0-9_-]+$/.test(token)) throw new Error('Неверный формат токена Telegram');
   try {
     const response = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
     const data = await response.json();
