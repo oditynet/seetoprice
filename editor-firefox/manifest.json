@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "SeeToPrice Data Editor",
+  "name": "seetoprice editor",
   "version": "1.0",
   "description": "Редактирует данные SeeToPrice через его API",
   
