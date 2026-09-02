@@ -1,0 +1,24 @@
+{
+  "manifest_version": 2,
+  "name": "SeeToPrice Data Editor",
+  "version": "1.0",
+  "description": "Редактирует данные SeeToPrice через его API",
+  "permissions": [
+    "storage"
+  ],
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "SeeToPrice Editor",
+    "default_icon": {
+      "48": "icon48.png"
+    }
+  },
+  "icons": {
+    "48": "icon48.png"
+  },
+  "applications": {
+    "gecko": {
+      "id": "{51c0848e-9d21-4587-aaaa-c14eacccff9a}"
+    }
+  }
+}

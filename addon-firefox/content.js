@@ -104,7 +104,7 @@ const getSelector = (el) => {
 };
 
 // Функция для проверки статуса скидки
-function checkOzonDiscountStatus() {
+/*function checkOzonDiscountStatus() {
   const widget = document.querySelector('[data-widget="foundCheaperText"]');
   if (!widget) return { exists: false };
   
@@ -112,6 +112,37 @@ function checkOzonDiscountStatus() {
   return {
     exists: true,
     text: text
+  };
+}*/
+function checkOzonDiscountStatus() {
+  // Ищем контейнер pdp_kb2, который стабильно содержит виджет скидки
+  const container = document.querySelector('.pdp_kb2');
+  if (!container) return { exists: false };
+  
+  // Ищем текст в контейнере
+  const text = container.textContent || '';
+  
+  // Определяем статус по тексту
+  let status = null;
+  const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
+  
+  if (normalizedText.includes('скидка одобрена')) {
+    status = 'approved';
+  } else if (normalizedText.includes('скидка отклонена')) {
+    status = 'rejected';
+  } else if (normalizedText.includes('%') || normalizedText.includes('—')) {
+    status = 'pending';
+  } else if (normalizedText.includes('скидка запрошена')) {
+    status = 'requested';
+  } else if (normalizedText.includes('хочу скидку')) {
+    status = 'available';
+  }
+  
+  return {
+    exists: true,
+    text: text,
+    status: status,
+    container: container
   };
 }
 
@@ -135,7 +166,7 @@ async function clickOzonDiscountButton() {
     button.click();
     console.log('Кнопка "Хочу скидку" нажата');
     
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
     return { 
       success: true, 
@@ -476,6 +507,37 @@ if (window.location.pathname.includes('/my/orderlist')) {
 
 let lastExtractedPrice = null;
 
+
+
+// Функция для проверки VPN на Всеинструменты
+function checkVseinstrumentiVPN() {
+  if (!window.location.hostname.includes('vseinstrumenti.ru')) return false;
+  
+  // Проверяем наличие элементов, характерных для страницы блокировки VPN
+  // Обычно это сообщение "Ошибка загрузки" или подобное
+  const vpnIndicators = [
+    // По тексту
+    document.querySelector('.content h1')?.textContent?.includes('Ошибка загрузки'),
+    document.querySelector('.content p')?.textContent?.includes('Проверьте подключение'),
+    document.querySelector('.content p')?.textContent?.includes('отключите его'),
+    document.querySelector('.content p')?.textContent?.includes('VPN'),
+    // По классам
+    document.querySelector('.content'),
+    document.querySelector('.refresh')
+  ];
+  
+  // Если есть хотя бы 2 признака - считаем что это страница блокировки
+  let vpnSigns = 0;
+  if (document.querySelector('.content')) vpnSigns++;
+  if (document.querySelector('.refresh')) vpnSigns++;
+  if (document.querySelector('.content h1')?.textContent?.includes('Ошибка загрузки')) vpnSigns++;
+  if (document.querySelector('.content p')?.textContent?.includes('Проверьте подключение')) vpnSigns++;
+  if (document.querySelector('.content p')?.textContent?.includes('VPN')) vpnSigns++;
+  
+  return vpnSigns >= 3;
+}
+
+
 function parseWBPrice() {
   // Проверяем, что мы именно на Wildberries
   if (!window.location.hostname.includes('wildberries.ru')) return;
@@ -607,7 +669,6 @@ if (window.location.hostname.includes('wildberries.ru')) {
 
 
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // ... ваш существующий код обработки сообщений ...
 
   if (request.action === "getWBSavedPrice") {
     // Перед отправкой пробуем обновить цену (на случай, если MutationObserver еще не отработал)

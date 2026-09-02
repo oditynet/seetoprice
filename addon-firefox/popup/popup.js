@@ -520,7 +520,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             link.textContent = escapeHTML(getProductNameFromUrl(data.url));
 
             // Если товар закончился - выделяем красным
-if (data.isOutOfStock) {
+if (data.isOutOfStock ||  data.isSoldOut) {
   link.style.color = '#dc3545';  // Красный цвет
   link.style.fontWeight = 'bold';
   link.title = 'Товар закончился';

@@ -174,7 +174,7 @@ function parseOzonPrice(document) {
       console.log(`[parseOzonPrice] Определена валюта: "${currency}"`);
     }
     
-    const discountWidget = document.querySelector('[data-widget="foundCheaperText"]');
+    const discountWidget = document.querySelector('.pdp_kb2');//.querySelector('[data-widget="foundCheaperText"]');
     let discountStatus = null;
     
     if (discountWidget) {
@@ -183,11 +183,14 @@ function parseOzonPrice(document) {
       
       if (widgetText.includes('Скидка одобрена')) discountStatus = 'approved';
       else if (widgetText.includes('Скидка отклонена')) discountStatus = 'rejected';
-      else if (widgetText.includes('%') || widgetText.includes('—')) discountStatus = 'pending';
+      //else if (widgetText.includes('%') || widgetText.includes('—')) discountStatus = 'pending';
       else if (widgetText.includes('Скидка запрошена')) discountStatus = 'requested';
       else if (widgetText.includes('Хочу скидку')) discountStatus = 'available';
       
       console.log(`[parseOzonPrice] Статус скидки: "${discountStatus}"`);
+    }else
+    {
+      console.log(`[parseOzonPrice] NOOOO status`);
     }
 
     const result = {
@@ -207,7 +210,22 @@ function parseOzonPrice(document) {
 
 function parseVseinstrumentiPrice(document) {
   console.log('[parseVseinstrumentiPrice] Начинаем парсинг Vseinstrumenti');
-  try {
+  
+ try{ 
+ /* const content = document.querySelector('.content');
+  if (!content) return false;
+  
+  const text = content.textContent || '';
+  if( text.includes('Ошибка загрузки') || 
+         text.includes('Проверьте подключение') || 
+         text.includes('VPN')){
+
+      return { price: null, currency: 'VPN' };
+         }
+*/
+ 
+  
+  
     const outOfStockElement = document.querySelector('.quhdQv p._typography_5vy1f_47._text_5vy1f_54._v2_5vy1f_16._5jOGud');
     if (outOfStockElement && outOfStockElement.textContent.includes('Нет в наличии')) {
       console.log('[parseVseinstrumentiPrice] Товар отсутствует в наличии');
@@ -453,10 +471,22 @@ async function getWilbPrice(urlOrTabId) {
 
       return { price: null, currency: 'RUB' };
     }
+    
+    
+    // ========== ПРОВЕРКА НА "НЕТ В НАЛИЧИИ" ==========
+    const [isSoldOut] = await browser.tabs.executeScript(tabId, {
+      code: `!!document.querySelector('[class*="soldOutProduct"]')`
+    });
+
+    if (isSoldOut) {
+      console.log('❌ Товар снят с продажи (Нет в наличии)');
+      return { price: null, currency: 'RUB', isSoldOut: true };
+    }
+    // ========== КОНЕЦ ПРОВЕРКИ ==========
 
 
     if (executedResult) {
-      console.log(`🔥 [WB EXECUTE SUCCESS] Цена успешно спарсена твоим кодом: ${executedResult} ₽`);
+      console.log(`🔥 [WB EXECUTE SUCCESS] Цена : ${executedResult} ₽`);
       return {
         price: String(executedResult),
         currency: "RUB"
@@ -542,7 +572,7 @@ async function checkPrices() {
           console.log('[checkPrices] Получены данные с Ozon:', priceData);
           
           // Обновляем статус скидки в хранилище
-          if (priceData && priceData.discountStatus) {
+          if (priceData) { // && priceData.discountStatus)  была скидка и потм на странице исчезла. ннадо удалить ее с хранилища
             console.log(`[checkPrices] Обновляем статус скидки: "${priceData.discountStatus}" для ${itemId}`);
             const currentItem = await browser.storage.local.get(itemId);
             const updatedItem = {
@@ -591,7 +621,40 @@ async function checkPrices() {
           //}
 
 priceData = await getWilbPrice(tab.id); // Передаем ID созданной вкладки
-  console.log('[checkPrices] Получены данные с Wildberries:', priceData);
+
+
+// ========== ОБРАБОТКА "НЕТ В НАЛИЧИИ" ==========
+  if (priceData && priceData.isSoldOut) {
+    console.log('[checkPrices] Товар снят с продажи');
+    const currentItem = await browser.storage.local.get(itemId);
+    const updatedItem = {
+      ...currentItem[itemId],
+      isSoldOut: true//,
+     // currentPrice: 'Нет в наличии'
+    };
+    await browser.storage.local.set({ [itemId]: updatedItem });
+    
+    /*browser.notifications.create({
+      type: "basic",
+      title: "❌ Товар снят с продажи",
+      message: `Товар больше не доступен: ${new URL(item.url).hostname}`,
+      iconUrl: "icons/icon48.png"
+    });
+    */
+    await browser.tabs.remove(tab.id);
+    continue;
+  }
+  else{
+  const currentItem = await browser.storage.local.get(itemId);
+    const updatedItem = {
+      ...currentItem[itemId],
+      isSoldOut: false
+    };
+    await browser.storage.local.set({ [itemId]: updatedItem });
+    
+  }
+
+
 
   if (priceData && priceData.price) {
     const currencySymbol = getCurrencySymbol(priceData.currency);
@@ -615,12 +678,39 @@ priceData = await getWilbPrice(tab.id); // Передаем ID созданно�
           
         } else if (url.hostname.includes('vseinstrumenti.ru')) {
           console.log('[checkPrices] Сайт: Vseinstrumenti.ru');
+          
+          // ========== ПРОВЕРКА КАПЧИ ==========
+const [captchaCheck] = await browser.tabs.executeScript(tab.id, {
+  code: `!!document.querySelector('.captcha-form #is-robot:not(:checked)')`
+});
+
+if (captchaCheck) {
+  console.log('🛡️ Обнаружена капча, нажимаем...');
+  await browser.tabs.executeScript(tabId, {
+    code: `document.querySelector('.captcha-form #is-robot')?.click()`
+  });
+  console.log('⏳ Ждем 5 секунд...');
+  await new Promise(resolve => setTimeout(resolve, 5000));
+}
+// ========== КОНЕЦ ПРОВЕРКИ КАПЧИ ==========
+          
+          
           const [result] = await browser.tabs.executeScript(tab.id, {
             code: `(${parseVseinstrumentiPrice.toString()})(document)`
           });
           priceData = result;
           console.log('[checkPrices] Получены данные с Vseinstrumenti:', priceData);
-          
+          if (priceData && priceData.currency == 'VPN'){
+              browser.notifications.create('wb-vpn-notification', {
+        type: 'basic',
+        // Укажите путь к реальной иконке вашего расширения (например, 48x48 пикселей)
+        iconUrl: browser.runtime.getURL('icons/icon48.png'), 
+        title: 'Всеинструменты: Доступ ограничен',
+        message: 'Расширение не может проверить цены, так как Всеинструменты заблокировал страницу. Пожалуйста, выключите VPN.',
+        priority: 2 // Максимальный приоритет, чтобы уведомление точно всплыло
+      });
+         continue;
+          }
           if (priceData && priceData.isOutOfStock) {
             console.log('[checkPrices] Товар отсутствует в наличии');
             const updatedItem = { ...item, isOutOfStock: true };
@@ -1167,7 +1257,7 @@ async function sendPriceAlert(item, newPrice, tgToken, tgId) {
   }
 }
 
-browser.alarms.create("priceCheck", { periodInMinutes: 10 });  
+browser.alarms.create("priceCheck", { periodInMinutes: 10 }); 
  console.log('[BACKGROUND] Аларм "priceCheck" создан с интервалом 10 минуты');
 
 browser.alarms.onAlarm.addListener((alarm) => {
@@ -1205,6 +1295,89 @@ function handleError(error) {
     iconUrl: "icons/icon48.png"
   });
 }
+
+
+// ========== API ДЛЯ ДРУГИХ АДДОНОВ ==========
+// SeeToPrice слушает запросы от других аддонов
+
+browser.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+    console.log('[SeeToPrice API] Запрос от аддона:', sender.id);
+    console.log('[SeeToPrice API] Сообщение:', message);
+    
+    // Обработка запросов
+    if (message.action === "getAllData") {
+        // Отдаём ВСЁ хранилище
+        browser.storage.local.get().then(data => {
+            console.log('[SeeToPrice API] Отдаю данные, записей:', Object.keys(data).length);
+            sendResponse({ success: true, data: data });
+        }).catch(err => {
+            sendResponse({ success: false, error: err.message });
+        });
+        return true; // Асинхронный ответ
+    }
+    
+    if (message.action === "getItem" && message.itemId) {
+        // Отдаём конкретный товар
+        browser.storage.local.get(message.itemId).then(data => {
+            sendResponse({ success: true, data: data[message.itemId] || null });
+        }).catch(err => {
+            sendResponse({ success: false, error: err.message });
+        });
+        return true;
+    }
+    
+    if (message.action === "setItem" && message.itemId && message.itemData) {
+        // Сохраняем/обновляем товар
+        const update = {};
+        update[message.itemId] = message.itemData;
+        browser.storage.local.set(update).then(() => {
+            console.log('[SeeToPrice API] Сохранён товар:', message.itemId);
+            sendResponse({ success: true });
+        }).catch(err => {
+            sendResponse({ success: false, error: err.message });
+        });
+        return true;
+    }
+    
+    if (message.action === "deleteItem" && message.itemId) {
+        // Удаляем товар
+        browser.storage.local.remove(message.itemId).then(() => {
+            console.log('[SeeToPrice API] Удалён товар:', message.itemId);
+            sendResponse({ success: true });
+        }).catch(err => {
+            sendResponse({ success: false, error: err.message });
+        });
+        return true;
+    }
+    
+    if (message.action === "setSettings" && message.settings) {
+        // Сохраняем настройки
+        browser.storage.local.set({ settings: message.settings }).then(() => {
+            console.log('[SeeToPrice API] Сохранены настройки');
+            sendResponse({ success: true });
+        }).catch(err => {
+            sendResponse({ success: false, error: err.message });
+        });
+        return true;
+    }
+    
+    if (message.action === "clearAll") {
+        // Очищаем всё хранилище
+        browser.storage.local.clear().then(() => {
+            console.log('[SeeToPrice API] Хранилище очищено');
+            sendResponse({ success: true });
+        }).catch(err => {
+            sendResponse({ success: false, error: err.message });
+        });
+        return true;
+    }
+    
+    // Неизвестное действие
+    sendResponse({ success: false, error: 'Unknown action: ' + message.action });
+    return true;
+});
+
+console.log('[SeeToPrice API] Слушаю запросы от других аддонов');
 
 console.log('[BACKGROUND] Скрипт полностью загружен и инициализирован');
 

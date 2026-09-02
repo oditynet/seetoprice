@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            width: 650px;
+            max-height: 700px;
+            margin: 0;
+            padding: 10px;
+            font-family: 'Segoe UI', sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            overflow-y: auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #cb11ab;
+            margin-bottom: 10px;
+            position: sticky;
+            top: 0;
+            background: #1e1e1e;
+            z-index: 10;
+        }
+        .header h2 { margin: 0; font-size: 16px; color: #fff; }
+        .header .status { font-size: 12px; color: #888; }
+        .header .status.online { color: #4caf50; }
+        .header .status.offline { color: #f44336; }
+        
+        .id-setting {
+            background: #252526;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            border-left: 3px solid #007acc;
+        }
+        .id-setting label {
+            font-size: 12px;
+            color: #888;
+            font-weight: 600;
+        }
+        .id-setting input {
+            flex: 1;
+            min-width: 200px;
+            padding: 4px 8px;
+            border: 1px solid #3d3d3d;
+            border-radius: 3px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-size: 12px;
+            font-family: 'Consolas', monospace;
+        }
+        .id-setting input:focus {
+            border-color: #cb11ab;
+            outline: none;
+        }
+        .id-setting .save-id-btn {
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 4px 14px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .id-setting .save-id-btn:hover { background: #0098ff; }
+        
+        .toolbar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .toolbar button {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            background: #2d2d2d;
+            color: #d4d4d4;
+        }
+        .toolbar button:hover { background: #3d3d3d; }
+        .toolbar button.danger { background: #5a1a1a; color: #ff6b6b; }
+        .toolbar button.danger:hover { background: #7a2a2a; }
+        .toolbar button.success { background: #1a4a1a; color: #6bff6b; }
+        .toolbar button.success:hover { background: #2a5a2a; }
+        .toolbar button.primary { background: #1a3a5a; color: #6bb5ff; }
+        .toolbar button.primary:hover { background: #2a4a6a; }
+        
+        .item-card {
+            background: #252526;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid #cb11ab;
+        }
+        .item-card .domain {
+            font-size: 11px;
+            color: #569cd6;
+            margin-bottom: 6px;
+            word-break: break-all;
+        }
+        .item-card .item-id {
+            font-size: 10px;
+            color: #6a6a6a;
+            margin-bottom: 4px;
+        }
+        .param-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 3px 0;
+            flex-wrap: wrap;
+        }
+        .param-row .key {
+            font-size: 11px;
+            font-weight: 600;
+            color: #9cdcfe;
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+        .param-row input, .param-row select, .param-row textarea {
+            flex: 1;
+            min-width: 60px;
+            padding: 3px 6px;
+            border: 1px solid #3d3d3d;
+            border-radius: 3px;
+            font-size: 11px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', monospace;
+        }
+        .param-row input:focus, .param-row select:focus, .param-row textarea:focus {
+            border-color: #cb11ab;
+            outline: none;
+            background: #2d2d2d;
+        }
+        .param-row input[readonly] {
+            color: #6a6a6a;
+            cursor: not-allowed;
+        }
+        .param-row textarea {
+            min-height: 40px;
+            resize: vertical;
+            font-size: 10px;
+        }
+        .param-row .type-badge {
+            font-size: 9px;
+            padding: 1px 6px;
+            border-radius: 8px;
+            background: #2d2d2d;
+            color: #888;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #2d2d2d;
+            flex-wrap: wrap;
+        }
+        .actions button {
+            padding: 3px 12px;
+            border: none;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .btn-save { background: #cb11ab; color: white; }
+        .btn-save:hover { background: #a30e89; }
+        .btn-delete { background: #5a1a1a; color: #ff6b6b; }
+        .btn-delete:hover { background: #7a2a2a; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 10px;
+            color: #6a6a6a;
+        }
+        .empty-state .icon { font-size: 48px; display: block; margin-bottom: 10px; }
+        
+        .toast {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2d2d2d;
+            color: #d4d4d4;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 999;
+            border: 1px solid #3d3d3d;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { border-color: #4caf50; }
+        .toast.error { border-color: #f44336; }
+        
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+        }
+        .loading .spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            font-size: 24px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Стили для вкладок */
+        .tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 10px;
+        }
+        .tabs button {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 4px 4px 0 0;
+            background: #2d2d2d;
+            color: #888;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .tabs button.active {
+            background: #3d3d3d;
+            color: #fff;
+            border-bottom: 2px solid #cb11ab;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>🔧 SeeToPrice Editor</h2>
+        <span class="status" id="connectionStatus">⏳ Подключение...</span>
+    </div>
+    
+    <!-- Поле для ввода ID аддона -->
+    <div class="id-setting">
+        <label>📌 ID аддона SeeToPrice:</label>
+        <input type="text" id="seetopriceId" placeholder="seetoprice@your-extension-id">
+        <button class="save-id-btn" id="saveIdBtn">💾 Сохранить</button>
+        <span style="font-size:10px;color:#6a6a6a;">(узнайте в about:debugging)</span>
+    </div>
+    
+    <!-- Вкладки -->
+    <div class="tabs">
+        <button class="active" data-tab="items">📦 Товары</button>
+        <button data-tab="settings">⚙️ Настройки</button>
+    </div>
+    
+    <!-- Вкладка Товары -->
+    <div id="tab-items" class="tab-content active">
+        <div class="toolbar">
+            <button class="primary" id="btnLoad">🔄 Загрузить данные</button>
+            <button class="success" id="btnExport">💾 Экспорт JSON</button>
+            <button class="success" id="btnImport">📥 Импорт JSON</button>
+            <button class="danger" id="btnClearAll">🗑️ Очистить всё</button>
+        </div>
+        <div id="itemsList">
+            <div class="loading">
+                <span class="spinner">⏳</span><br>
+                Укажите ID аддона SeeToPrice и нажмите "Загрузить данные"
+            </div>
+        </div>
+    </div>
+    
+    <!-- Вкладка Настройки -->
+    <div id="tab-settings" class="tab-content">
+        <div id="settingsList">
+            <div class="empty-state">
+                <span class="icon">⚙️</span>
+                Настройки будут показаны после загрузки
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+    
+    <script src="popup.js"></script>
+</body>
+</html>
