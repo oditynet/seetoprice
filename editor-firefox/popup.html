@@ -72,6 +72,10 @@
             cursor: pointer;
         }
         .id-setting .save-id-btn:hover { background: #0098ff; }
+        .id-setting .hint {
+            font-size: 10px;
+            color: #6a6a6a;
+        }
         
         .toolbar {
             display: flex;
@@ -160,6 +164,19 @@
             background: #2d2d2d;
             color: #888;
         }
+        .param-row .json-view {
+            flex: 1;
+            background: #1a1a1a;
+            padding: 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 10px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 100px;
+            overflow: auto;
+            border: 1px solid #2d2d2d;
+        }
         
         .actions {
             display: flex;
@@ -223,7 +240,6 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* Стили для вкладок */
         .tabs {
             display: flex;
             gap: 2px;
@@ -257,21 +273,18 @@
         <span class="status" id="connectionStatus">⏳ Подключение...</span>
     </div>
     
-    <!-- Поле для ввода ID аддона -->
     <div class="id-setting">
         <label>📌 ID аддона SeeToPrice:</label>
         <input type="text" id="seetopriceId" placeholder="seetoprice@your-extension-id">
         <button class="save-id-btn" id="saveIdBtn">💾 Сохранить</button>
-        <span style="font-size:10px;color:#6a6a6a;">(узнайте в about:debugging)</span>
+        <span class="hint">(узнайте в about:debugging)</span>
     </div>
     
-    <!-- Вкладки -->
     <div class="tabs">
         <button class="active" data-tab="items">📦 Товары</button>
         <button data-tab="settings">⚙️ Настройки</button>
     </div>
     
-    <!-- Вкладка Товары -->
     <div id="tab-items" class="tab-content active">
         <div class="toolbar">
             <button class="primary" id="btnLoad">🔄 Загрузить данные</button>
@@ -279,22 +292,11 @@
             <button class="success" id="btnImport">📥 Импорт JSON</button>
             <button class="danger" id="btnClearAll">🗑️ Очистить всё</button>
         </div>
-        <div id="itemsList">
-            <div class="loading">
-                <span class="spinner">⏳</span><br>
-                Укажите ID аддона SeeToPrice и нажмите "Загрузить данные"
-            </div>
-        </div>
+        <div id="itemsList"></div>
     </div>
     
-    <!-- Вкладка Настройки -->
     <div id="tab-settings" class="tab-content">
-        <div id="settingsList">
-            <div class="empty-state">
-                <span class="icon">⚙️</span>
-                Настройки будут показаны после загрузки
-            </div>
-        </div>
+        <div id="settingsList"></div>
     </div>
     
     <div class="toast" id="toast"></div>

@@ -3,22 +3,29 @@
   "name": "SeeToPrice Data Editor",
   "version": "1.0",
   "description": "Редактирует данные SeeToPrice через его API",
+  
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{51c0848e-9d21-4587-aaaa-c14eacccff9a}",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+  
   "permissions": [
     "storage"
   ],
+  
   "browser_action": {
     "default_popup": "popup.html",
     "default_title": "SeeToPrice Editor",
     "default_icon": {
-      "48": "icon48.png"
+      "64": "icon48.png"
     }
   },
+  
   "icons": {
-    "48": "icon48.png"
-  },
-  "applications": {
-    "gecko": {
-      "id": "{51c0848e-9d21-4587-aaaa-c14eacccff9a}"
-    }
+    "64": "icon48.png"
   }
 }

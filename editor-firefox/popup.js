@@ -88,6 +88,135 @@ function getSelectOptions(key) {
     return [];
 }
 
+// ===== БЕЗОПАСНОЕ СОЗДАНИЕ ЭЛЕМЕНТОВ =====
+
+function createParamRow(key, value, id, readonly) {
+    const row = document.createElement('div');
+    row.className = 'param-row';
+    
+    const label = document.createElement('span');
+    label.className = 'key';
+    label.textContent = key + ':';
+    row.appendChild(label);
+    
+    const isBool = isBooleanField(key);
+    const isSelect = isSelectField(key);
+    
+    if (isSelect) {
+        const select = document.createElement('select');
+        select.dataset.id = id;
+        select.dataset.field = key;
+        const options = getSelectOptions(key);
+        for (const opt of options) {
+            const option = document.createElement('option');
+            option.value = opt;
+            option.textContent = opt || '—';
+            if (opt === value) option.selected = true;
+            select.appendChild(option);
+        }
+        row.appendChild(select);
+    } else if (isBool) {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.id = id;
+        checkbox.dataset.field = key;
+        checkbox.checked = !!value;
+        row.appendChild(checkbox);
+        
+        const status = document.createElement('span');
+        status.style.cssText = 'font-size:10px;color:#6a6a6a;';
+        status.textContent = value ? 'true' : 'false';
+        row.appendChild(status);
+    } else if (key === 'priceHistory' && (typeof value === 'object' || String(value).length > 100)) {
+        const textarea = document.createElement('textarea');
+        textarea.dataset.id = id;
+        textarea.dataset.field = key;
+        if (readonly) textarea.readOnly = true;
+        textarea.textContent = formatValue(value);
+        row.appendChild(textarea);
+    } else {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.dataset.id = id;
+        input.dataset.field = key;
+        if (readonly) input.readOnly = true;
+        input.value = formatValue(value);
+        row.appendChild(input);
+    }
+    
+    if (readonly) {
+        const badge = document.createElement('span');
+        badge.className = 'type-badge';
+        badge.textContent = '🔒';
+        row.appendChild(badge);
+    }
+    
+    return row;
+}
+
+function createItemCard(id, item) {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    card.dataset.id = id;
+    
+    const idEl = document.createElement('div');
+    idEl.className = 'item-id';
+    idEl.textContent = '🔑 ' + id;
+    card.appendChild(idEl);
+    
+    const domain = document.createElement('div');
+    domain.className = 'domain';
+    domain.textContent = '🔗 ' + getDomain(item.url);
+    card.appendChild(domain);
+    
+    const fields = Object.keys(item).sort();
+    for (const key of fields) {
+        const readonly = ['url', 'lastChecked'].includes(key);
+        const row = createParamRow(key, item[key], id, readonly);
+        card.appendChild(row);
+    }
+    
+    // JSON view
+    /*const jsonRow = document.createElement('div');
+    jsonRow.className = 'param-row';
+    const jsonLabel = document.createElement('span');
+    jsonLabel.className = 'key';
+    jsonLabel.textContent = 'RAW:';
+    jsonRow.appendChild(jsonLabel);
+    const jsonDiv = document.createElement('div');
+    jsonDiv.className = 'json-view';
+    jsonDiv.textContent = JSON.stringify(item, null, 2);
+    jsonRow.appendChild(jsonDiv);
+    card.appendChild(jsonRow);
+    */
+    // Actions
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn-save';
+    saveBtn.dataset.id = id;
+    saveBtn.textContent = '💾 Сохранить';
+    saveBtn.addEventListener('click', () => saveItem(id));
+    actions.appendChild(saveBtn);
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn-delete';
+    deleteBtn.dataset.id = id;
+    deleteBtn.textContent = '🗑️ Удалить';
+    deleteBtn.addEventListener('click', async () => {
+        if (confirm(`Удалить товар "${id}"?`)) {
+            await callSeetoprice('deleteItem', { itemId: id });
+            showToast('🗑️ Удалено', 'success');
+            await loadData();
+        }
+    });
+    actions.appendChild(deleteBtn);
+    
+    card.appendChild(actions);
+    return card;
+}
+
 // ===== ОБЩЕНИЕ С SEETOPRICE =====
 
 async function callSeetoprice(action, params = {}) {
@@ -124,29 +253,34 @@ async function callSeetoprice(action, params = {}) {
 // ===== ЗАГРУЗКА ДАННЫХ =====
 
 async function loadData() {
+    const container = document.getElementById('itemsList');
+    
     if (!SEETOPRICE_ID) {
-        document.getElementById('itemsList').innerHTML = `
-            <div class="empty-state">
-                <span class="icon">⚠️</span>
-                Укажите ID аддона SeeToPrice в поле выше<br>
-                <small>Нажмите "Сохранить" и затем "Загрузить данные"</small>
-            </div>
+        container.innerHTML = '';
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `
+            <span class="icon">⚠️</span>
+            Укажите ID аддона SeeToPrice в поле выше<br>
+            <small>Нажмите "Сохранить" и затем "Загрузить данные"</small>
         `;
+        container.appendChild(empty);
         return;
     }
     
     try {
-        document.getElementById('itemsList').innerHTML = `
-            <div class="loading">
-                <span class="spinner">⏳</span><br>
-                Загрузка данных из SeeToPrice...
-            </div>
+        container.innerHTML = '';
+        const loading = document.createElement('div');
+        loading.className = 'loading';
+        loading.innerHTML = `
+            <span class="spinner">⏳</span><br>
+            Загрузка данных из SeeToPrice...
         `;
+        container.appendChild(loading);
         
         const response = await callSeetoprice('getAllData');
         allData = response.data || {};
         
-        // Отделяем настройки от товаров
         const items = {};
         const settings = {};
         for (const [key, value] of Object.entries(allData)) {
@@ -162,13 +296,15 @@ async function loadData() {
         showToast(`✅ Загружено ${Object.keys(items).length} товаров`, 'success');
         
     } catch (error) {
-        document.getElementById('itemsList').innerHTML = `
-            <div class="empty-state">
-                <span class="icon">🚫</span>
-                Не удалось загрузить данные<br>
-                <small>${error.message}</small>
-            </div>
+        container.innerHTML = '';
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `
+            <span class="icon">🚫</span>
+            Не удалось загрузить данные<br>
+            <small>${error.message}</small>
         `;
+        container.appendChild(empty);
     }
 }
 
@@ -176,142 +312,84 @@ async function loadData() {
 
 function renderItems(items) {
     const container = document.getElementById('itemsList');
+    container.innerHTML = '';
     const entries = Object.entries(items);
     
     if (entries.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <span class="icon">📭</span>
-                Нет товаров<br>
-                <small>Добавьте товары через SeeToPrice (ПКМ → Отслеживать цену)</small>
-            </div>
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `
+            <span class="icon">📭</span>
+            Нет товаров<br>
+            <small>Добавьте товары через SeeToPrice (ПКМ → Отслеживать цену)</small>
         `;
+        container.appendChild(empty);
         return;
     }
     
-    let html = '';
     for (const [id, item] of entries) {
-        const domain = getDomain(item.url);
-        const fields = Object.keys(item).sort();
-        
-        html += `
-            <div class="item-card" data-id="${id}">
-                <div class="item-id">🔑 ${id}</div>
-                <div class="domain">🔗 ${domain}</div>
-        `;
-        
-        for (const key of fields) {
-            const value = item[key];
-            const isBool = isBooleanField(key);
-            const isSelect = isSelectField(key);
-            const displayValue = formatValue(value);
-            const readonly = ['url', 'lastChecked'].includes(key);
-            
-            html += `<div class="param-row">`;
-            html += `<span class="key">${key}:</span>`;
-            
-            if (isSelect) {
-                const options = getSelectOptions(key);
-                html += `<select data-id="${id}" data-field="${key}">`;
-                for (const opt of options) {
-                    const selected = opt === value ? 'selected' : '';
-                    html += `<option value="${opt}" ${selected}>${opt || '—'}</option>`;
-                }
-                html += `</select>`;
-            } else if (isBool) {
-                const checked = value ? 'checked' : '';
-                html += `<input type="checkbox" data-id="${id}" data-field="${key}" ${checked}>`;
-                html += `<span style="font-size:10px;color:#6a6a6a;">${value ? 'true' : 'false'}</span>`;
-            } else if (key === 'priceHistory' && typeof value === 'object') {
-                html += `<textarea data-id="${id}" data-field="${key}" ${readonly ? 'readonly' : ''}>${displayValue}</textarea>`;
-            } else {
-                html += `<input type="text" value="${displayValue}" data-id="${id}" data-field="${key}" ${readonly ? 'readonly' : ''}>`;
-            }
-            
-            if (readonly) {
-                html += `<span class="type-badge">🔒</span>`;
-            }
-            html += `</div>`;
-        }
-        
-        html += `
-            <div class="actions">
-                <button class="btn-save" data-id="${id}">💾 Сохранить</button>
-                <button class="btn-delete" data-id="${id}">🗑️ Удалить</button>
-            </div>
-            </div>
-        `;
+        const card = createItemCard(id, item);
+        container.appendChild(card);
     }
-    
-    container.innerHTML = html;
-    
-    // Обработчики
-    container.querySelectorAll('.btn-save').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const id = btn.dataset.id;
-            await saveItem(id);
-        });
-    });
-    
-    container.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const id = btn.dataset.id;
-            if (confirm(`Удалить товар "${id}"?`)) {
-                await callSeetoprice('deleteItem', { itemId: id });
-                showToast('🗑️ Удалено', 'success');
-                await loadData();
-            }
-        });
-    });
 }
 
 // ===== РЕНДЕРИНГ НАСТРОЕК =====
 
 function renderSettings(settingsData) {
     const container = document.getElementById('settingsList');
+    container.innerHTML = '';
     const settings = settingsData?.settings || null;
     
     if (!settings || Object.keys(settings).length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <span class="icon">⚙️</span>
-                Настройки не найдены
-            </div>
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `
+            <span class="icon">⚙️</span>
+            Настройки не найдены
         `;
+        container.appendChild(empty);
         return;
     }
     
-    let html = `
-        <div class="item-card">
-            <div class="item-id">⚙️ Настройки SeeToPrice</div>
-    `;
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    
+    const idEl = document.createElement('div');
+    idEl.className = 'item-id';
+    idEl.textContent = '⚙️ Настройки SeeToPrice';
+    card.appendChild(idEl);
     
     for (const [key, value] of Object.entries(settings)) {
-        const displayValue = formatValue(value);
-        html += `
-            <div class="param-row">
-                <span class="key">${key}:</span>
-                <input type="text" value="${displayValue}" data-settings-key="${key}">
-            </div>
-        `;
+        const row = document.createElement('div');
+        row.className = 'param-row';
+        
+        const label = document.createElement('span');
+        label.className = 'key';
+        label.textContent = key + ':';
+        row.appendChild(label);
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.dataset.settingsKey = key;
+        input.value = formatValue(value);
+        row.appendChild(input);
+        
+        card.appendChild(row);
     }
     
-    html += `
-        <div class="actions">
-            <button class="btn-save" id="saveSettingsBtn">💾 Сохранить настройки</button>
-        </div>
-        </div>
-    `;
+    const actions = document.createElement('div');
+    actions.className = 'actions';
     
-    container.innerHTML = html;
-    
-    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn-save';
+    saveBtn.id = 'saveSettingsBtn';
+    saveBtn.textContent = '💾 Сохранить настройки';
+    saveBtn.addEventListener('click', async () => {
         const newSettings = {};
-        container.querySelectorAll('input[data-settings-key]').forEach(input => {
+        card.querySelectorAll('input[data-settings-key]').forEach(input => {
             const key = input.dataset.settingsKey;
             newSettings[key] = input.value;
         });
-        
         try {
             await callSeetoprice('setSettings', { settings: newSettings });
             showToast('✅ Настройки сохранены', 'success');
@@ -320,6 +398,10 @@ function renderSettings(settingsData) {
             showToast('❌ Ошибка: ' + error.message, 'error');
         }
     });
+    actions.appendChild(saveBtn);
+    card.appendChild(actions);
+    
+    container.appendChild(card);
 }
 
 // ===== СОХРАНЕНИЕ ТОВАРА =====
