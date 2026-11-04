@@ -213,3 +213,5 @@ about:debugging#/runtime/this-firefox
 <img src="https://github.com/oditynet/seetoprice/blob/main/screen4.png" title="1.3.0.4" width="800" />
 
 <img src="https://github.com/oditynet/seetoprice/blob/main/screen6.png" title="1.3.2.1 editor" width="800" />
+
+<img src="https://github.com/oditynet/seetoprice/blob/main/screen7.png" title="1.4 editor" width="800" />
