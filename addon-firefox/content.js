@@ -1,4 +1,78 @@
 // content.js
+
+
+// ========== Подделка Focusly для Ozon ==========
+if (window.location.hostname.includes('ozon.ru')) {
+  // Перехват document.hidden
+  Object.defineProperty(document, 'hidden', {
+    get: () => false,
+    configurable: true
+  });
+
+  // Перехват document.visibilityState
+  Object.defineProperty(document, 'visibilityState', {
+    get: () => 'visible',
+    configurable: true
+  });
+
+  // Перехват document.hasFocus
+  document.hasFocus = () => true;
+
+  // Блокировка событий blur (опционально, в зависимости от того, слушает ли Ozon эти события)
+  window.addEventListener('blur', (e) => {
+    e.stopImmediatePropagation();
+  }, true);
+
+  // Принудительная отправка события visibilitychange (на случай, если страница уже загрузилась и прослушивает)
+  document.dispatchEvent(new Event('visibilitychange'));
+}
+
+
+
+
+
+
+// ===== Глобальный Worker-таймер (вне collectOzonRatingStats) =====
+let timerWorker = null;
+let timerIdCounter = 0;
+const pendingTimers = new Map();
+
+function initTimerWorker() {
+  if (timerWorker) return;
+  const workerCode = `
+    self.onmessage = function(e) {
+      const { id, ms } = e.data;
+      setTimeout(() => self.postMessage({ id }), ms);
+    };
+  `;
+  const blob = new Blob([workerCode], { type: 'application/javascript' });
+  const workerUrl = URL.createObjectURL(blob);
+  timerWorker = new Worker(workerUrl);
+  timerWorker.onmessage = (e) => {
+    const { id } = e.data;
+    const resolve = pendingTimers.get(id);
+    if (resolve) {
+      pendingTimers.delete(id);
+      resolve();
+    }
+  };
+}
+
+function sleep1(ms) {
+  initTimerWorker();
+  return new Promise((resolve) => {
+    const id = ++timerIdCounter;
+    pendingTimers.set(id, resolve);
+    timerWorker.postMessage({ id, ms });
+  });
+}
+
+
+
+
+
+
+
 let lastPriceData = null;
 
 // Функция для определения валюты
@@ -104,7 +178,7 @@ const getSelector = (el) => {
 };
 
 // Функция для проверки статуса скидки
-/*function checkOzonDiscountStatus() {
+function checkOzonDiscountStatus() {
   const widget = document.querySelector('[data-widget="foundCheaperText"]');
   if (!widget) return { exists: false };
   
@@ -113,38 +187,8 @@ const getSelector = (el) => {
     exists: true,
     text: text
   };
-}*/
-function checkOzonDiscountStatus() {
-  // Ищем контейнер pdp_kb2, который стабильно содержит виджет скидки
-  const container = document.querySelector('.pdp_kb2');
-  if (!container) return { exists: false };
-  
-  // Ищем текст в контейнере
-  const text = container.textContent || '';
-  
-  // Определяем статус по тексту
-  let status = null;
-  const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
-  
-  if (normalizedText.includes('скидка одобрена')) {
-    status = 'approved';
-  } else if (normalizedText.includes('скидка отклонена')) {
-    status = 'rejected';
-  } else if (normalizedText.includes('%') || normalizedText.includes('—')) {
-    status = 'pending';
-  } else if (normalizedText.includes('скидка запрошена')) {
-    status = 'requested';
-  } else if (normalizedText.includes('хочу скидку')) {
-    status = 'available';
-  }
-  
-  return {
-    exists: true,
-    text: text,
-    status: status,
-    container: container
-  };
 }
+
 
 // Функция для нажатия на кнопку "Хочу скидку"
 async function clickOzonDiscountButton() {
@@ -666,6 +710,454 @@ if (window.location.hostname.includes('wildberries.ru')) {
   });
   wbObserver.observe(document.body, { childList: true, subtree: true });
 }
+
+
+
+
+
+
+
+
+
+
+let silentAudioCtx = null;
+
+function keepTabActive() {
+  if (!silentAudioCtx) {
+    silentAudioCtx = new AudioContext();
+    const osc = silentAudioCtx.createOscillator();
+    const gain = silentAudioCtx.createGain();
+    gain.gain.value = 0; // полностью беззвучно
+    osc.connect(gain);
+    gain.connect(silentAudioCtx.destination);
+    osc.start();
+  }
+  if (silentAudioCtx.state === 'suspended') {
+    silentAudioCtx.resume();
+  }
+}
+
+function stopKeepingTabActive() {
+  if (silentAudioCtx) {
+    silentAudioCtx.close();
+    silentAudioCtx = null;
+  }
+}
+
+async function collectOzonRatingStats() {
+  const T0 = Date.now();
+  const mark = (label) => {
+    const ms = Date.now() - T0;
+    console.log(`%c[OzonScraper] ⏱ ${label}: ${ms} мс (${(ms/1000).toFixed(1)} с)`, 'color:#c60;font-weight:bold');
+  };
+  
+  
+  keepTabActive();
+  
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  const waitFor = async (selector, timeout = 20000) => {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const el = document.querySelector(selector);
+      if (el) return el;
+      await sleep1(400);
+    }
+    return null;
+  };
+
+  const scrollUntil = async (predicate, { stepPx = null, pauseMs = 560, maxSteps = 200 } = {}) => {
+    const step = stepPx ?? Math.max(480, Math.floor(window.innerHeight * 0.84));
+    for (let i = 0; i < maxSteps; i++) {
+      const found = predicate();
+      if (found) return found;
+      window.scrollBy({ top: step, behavior: 'instant' });
+      await sleep1(pauseMs);
+    }
+    return predicate();
+  };
+
+  mark('старт');
+
+  // ===== Блокировка картинок =====
+  let imgObserver = null;
+
+  const hideImg = (img) => {
+    if (!img || img.tagName !== 'IMG') return;
+    img.style.visibility = 'hidden';
+    img.removeAttribute('srcset');
+    img.removeAttribute('src');
+  };
+
+  const disableImages = () => {
+    document.querySelectorAll('img').forEach(hideImg);
+    imgObserver = new MutationObserver((mutations) => {
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.nodeType !== 1) return;
+          if (node.tagName === 'IMG') hideImg(node);
+          else if (node.querySelectorAll) node.querySelectorAll('img').forEach(hideImg);
+        });
+      });
+    });
+    imgObserver.observe(document.body, { childList: true, subtree: true });
+  };
+
+  const restoreImages = () => {
+    if (imgObserver) {
+      imgObserver.disconnect();
+      imgObserver = null;
+    }
+    document.querySelectorAll('img').forEach(img => {
+      img.style.visibility = '';
+    });
+  };
+
+  await browser.runtime.sendMessage({ action: 'setBlockImages', value: true });
+  disableImages();
+
+  // ===== 1. Заголовок «Отзывы о товаре» — ПЕРВЫМ =====
+  const findReviewsHeading = () => {
+    const spans = [...document.querySelectorAll('span')];
+    return spans.find(s => /Отзывы о товаре/i.test((s.textContent || '').trim()));
+  };
+
+  let heading = await scrollUntil(findReviewsHeading, { pauseMs: 460, maxSteps: 150 });
+  mark('поиск заголовка «Отзывы о товаре»');
+  if (!heading) {
+    await browser.runtime.sendMessage({ action: 'setBlockImages', value: false });
+    restoreImages();
+    return { error: 'Заголовок «Отзывы о товаре» не найден' };
+  }
+  heading.scrollIntoView({ behavior: 'instant', block: 'center' });
+  await sleep1(600);
+  mark('scrollIntoView + sleep(700)');
+
+  // ===== 2. Кнопка «Этот вариант товара» — ПОСЛЕ заголовка =====
+  const findVariantBtn = () => {
+    const candidates = [...document.querySelectorAll('.b1c5_7_10-a5')];
+    return candidates.find(el => /^Этот вариант товара/i.test((el.textContent || '').trim()));
+  };
+
+  const variantBtn = findVariantBtn();
+  mark('поиск кнопки «Этот вариант товара» (без ожидания)');
+
+
+ if (!variantBtn) {
+    console.log('%c[OzonScraper] 🔘 Кнопки нет — эмулирую scroll для подгрузки', 'color:#005bff');
+
+    // 1. Прокрутить window на один экран вниз
+    window.scrollBy({ top: Math.floor(window.innerHeight * 0.8), behavior: 'instant' });
+    await sleep1(300);
+
+    // 2. Форсировать scroll-событие на window
+    window.dispatchEvent(new Event('scroll', { bubbles: true }));
+
+    // 3. Найти контейнер отзывов и прокрутить его + форс scroll
+    const firstReview = document.querySelector('[data-review-uuid]');
+    if (firstReview) {
+      let el = firstReview.parentElement;
+      while (el && el !== document.body) {
+        const s = getComputedStyle(el);
+        if (/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 10) {
+          el.scrollTop = el.scrollHeight;
+          el.dispatchEvent(new Event('scroll', { bubbles: true }));
+          console.log('%c[OzonScraper] 🔘 Прокрутил контейнер отзывов', 'color:#005bff');
+          break;
+        }
+        el = el.parentElement;
+      }
+    }
+
+    await sleep1(500);
+  }
+
+  if (variantBtn) {
+    console.log('%c[OzonScraper] 🔘 Найдена кнопка: «' + variantBtn.textContent.trim() + '»', 'color:#005bff;font-weight:bold');
+
+    const beforeUuids = new Set(
+      [...document.querySelectorAll('[data-review-uuid]')].map(el => el.getAttribute('data-review-uuid'))
+    );
+
+    const targets = [
+      variantBtn.querySelector('.b1c5_7_10-a3'),
+      variantBtn.querySelector('.b1c5_7_10-a2'),
+      variantBtn
+    ].filter(Boolean);
+
+    const fire = (el, type) => {
+      const ev = new MouseEvent(type, {
+        bubbles: true, cancelable: true, view: window, button: 0,
+        buttons: type === 'mousedown' || type === 'pointerdown' ? 1 : 0
+      });
+      el.dispatchEvent(ev);
+    };
+
+    for (const t of targets) {
+      try {
+        t.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1 }));
+        t.dispatchEvent(new PointerEvent('pointerup',   { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 0 }));
+      } catch (e) {}
+      fire(t, 'mousedown');
+      fire(t, 'mouseup');
+      fire(t, 'click');
+      if (typeof t.click === 'function') t.click();
+    }
+    mark('отправка кликов по кнопке');
+
+    const start = Date.now();
+    let loaded = false;
+    while (Date.now() - start < 1500) {
+      await sleep1(500);
+      const current = [...document.querySelectorAll('[data-review-uuid]')]
+        .map(el => el.getAttribute('data-review-uuid'));
+      if (current.length > 0 && (current.some(u => !beforeUuids.has(u)) || beforeUuids.size === 0)) {
+        loaded = true;
+        break;
+      }
+    }
+    mark('ожидание перерисовки после клика (до 1.5 сек)');
+
+    if (loaded) {
+      console.log(`%c[OzonScraper] ✅ Отзывы перерисовались: ${document.querySelectorAll('[data-review-uuid]').length}`, 'color:#0a0;font-weight:bold');
+    } else {
+      console.log('%c[OzonScraper] ⚠️ Отзывы не изменились за 1.5 сек', 'color:#c00;font-weight:bold');
+    }
+    await sleep1(400);
+    mark('sleep(400) после клика');
+  } else {
+    console.log('%c[OzonScraper] ⚪ Кнопка «Этот вариант товара» не найдена — сразу крутим отзывы', 'color:#888');
+  }
+
+  // ===== 3. Ждём первый отзыв =====
+  let first = document.querySelector('[data-review-uuid]');
+  if (!first) {
+    console.log('[OzonScraper] ⏳ Отзывов нет, ждём до 4 сек…');
+    first = await waitFor('[data-review-uuid]', 4000);
+  }
+  mark('ожидание первого отзыва');
+  if (!first) {
+    await browser.runtime.sendMessage({ action: 'setBlockImages', value: false });
+    restoreImages();
+    return { error: 'Отзывы не появились в DOM' };
+  }
+
+  // ===== 4. Парсинг отзыва =====
+  const parseReview = (el) => {
+    const uuid = el.getAttribute('data-review-uuid') || '';
+    const isOutdated =
+      [...el.querySelectorAll('[title]')].some(n => /Отзыв устарел/i.test(n.getAttribute('title') || '')) ||
+      /Отзыв устарел/i.test(el.textContent || '');
+
+    let rating = null;
+    if (!isOutdated) {
+      const ratingBox = el.querySelector('.rpProduct_da1 .a5d5_5_6-a1') || el.querySelector('.rpProduct_da1');
+      if (ratingBox) {
+        const allStars = [...ratingBox.querySelectorAll('svg')];
+        const filled = allStars.filter(s => s.classList.contains('a5d5_5_6-a9'));
+        if (filled.length > 0 && filled.length <= 5) rating = filled.length;
+        else if (allStars.length >= 5) rating = allStars.length;
+      }
+    }
+
+    const text = el.querySelector('.rpProduct_da3 .rpProduct_d2a')?.textContent?.trim()
+      || el.querySelector('.rpProduct_da3')?.textContent?.trim() || '';
+    const hasText = text.replace(/\s+/g, ' ').trim().length > 0;
+
+    return { uuid, rating, hasText, isOutdated, text };
+  };
+
+  // ===== 5. Прокрутка + сбор =====
+  const collected = new Map();
+
+  const collectVisible = () => {
+    const els = document.querySelectorAll('[data-review-uuid]');
+    for (const el of els) {
+      const uuid = el.getAttribute('data-review-uuid');
+      if (!uuid || collected.has(uuid)) continue;
+      const r = parseReview(el);
+      if (r.uuid) collected.set(r.uuid, r);
+    }
+  };
+
+  collectVisible();
+  mark('первый collectVisible');
+
+  let stableRounds = 0;
+  const MAX_STABLE = 3;
+  const STEP = Math.max(460, Math.floor(window.innerHeight * 0.86));
+
+  let cachedStop = false;
+  let lastStopCheck = 0;
+
+  while (stableRounds < MAX_STABLE) {
+    const roundStart = Date.now();
+    const roundIdx = stableRounds;
+
+    if (Date.now() - lastStopCheck > 1500) {
+      const stopCheckStart = Date.now();
+      const stopFlag = await browser.runtime.sendMessage({ action: 'checkRatingStop' });
+      cachedStop = !!(stopFlag && stopFlag.stop);
+      lastStopCheck = Date.now();
+      console.log(`[OzonScraper] ⏱ checkRatingStop: ${Date.now() - stopCheckStart} мс`);
+    }
+    if (cachedStop) {
+      await browser.runtime.sendMessage({ action: 'setBlockImages', value: false });
+      restoreImages();
+      return { stopped: true, partial: collected.size };
+    }
+
+    const before = collected.size;
+
+    const scrollStart = Date.now();
+    window.scrollBy({ top: STEP, behavior: 'instant' });
+    await sleep1(stableRounds === 0 ? 450 : 300);
+    const scrollMs = Date.now() - scrollStart;
+
+    const collectStart = Date.now();
+    collectVisible();
+    const collectMs = Date.now() - collectStart;
+
+    const after = collected.size;
+    const roundMs = Date.now() - roundStart;
+
+    console.log(`[OzonScraper] ⏱ раунд #${roundIdx}: scroll=${scrollMs}мс, collect=${collectMs}мс, всего=${roundMs}мс, собрано=${after} (было ${before})`);
+
+    if (after === before) stableRounds++;
+    else stableRounds = 0;
+  }
+  mark('цикл прокрутки завершён');
+
+  // ===== 6. Статистика =====
+  const allReviews = [...collected.values()];
+  const freshReviews = allReviews.filter(r => !r.isOutdated && r.rating !== null);
+  const emptyReviews = freshReviews.filter(r => !r.hasText);
+  const withTextReviews = freshReviews.filter(r => r.hasText);
+
+  const calcStats = (arr) => {
+    const counts = {1:0,2:0,3:0,4:0,5:0};
+    let sum = 0;
+    arr.forEach(r => {
+      if (counts[r.rating] !== undefined) counts[r.rating]++;
+      sum += r.rating;
+    });
+    const total = arr.length;
+    const avg = total ? sum / total : 0;
+    return { total, counts, sum, avg };
+  };
+
+  const statsWithText = calcStats(withTextReviews);
+  const pct = (a, b) => b ? Math.round((a / b) * 100) + '%' : '0%';
+  const starsStr = (st) =>
+    [5,4,3,2,1].map(i => `${i}★${st.counts[i]}(${pct(st.counts[i], st.total)})`).join(' ');
+
+  mark('расчёт статистики');
+
+  // ===== 7. Отзывы на 1★ с текстом (для 3-грамм) =====
+  const oneStarReviews = allReviews.filter(r => r.rating === 1 && r.hasText && r.text);
+  console.log(`[OzonScraper] 1★ с текстом: ${oneStarReviews.length} из ${allReviews.filter(r => r.rating === 1).length}`);
+
+  // ===== 8. Анализ 3-грамм =====
+  let top3Grams = [];
+  if (oneStarReviews.length > 0) {
+    const normalize = (s) =>
+      (s || '')
+        .toLowerCase()
+        .replace(/[^а-яёa-z0-9\s]/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const tokenize = (text) => normalize(text).split(' ').filter(Boolean);
+
+    const phraseReviews = new Map();
+    const phraseTotal = new Map();
+
+    oneStarReviews.forEach(r => {
+      const tokens = tokenize(r.text);
+      if (tokens.length < 3) return;
+      const seen = new Set();
+      for (let i = 0; i <= tokens.length - 3; i++) {
+        const phrase = tokens[i] + ' ' + tokens[i + 1] + ' ' + tokens[i + 2];
+        phraseTotal.set(phrase, (phraseTotal.get(phrase) || 0) + 1);
+        if (!seen.has(phrase)) {
+          seen.add(phrase);
+          if (!phraseReviews.has(phrase)) phraseReviews.set(phrase, new Set());
+          phraseReviews.get(phrase).add(r.uuid);
+        }
+      }
+    });
+
+    top3Grams = [...phraseReviews.entries()]
+      .map(([phrase, set]) => ({
+        phrase,
+        reviews: set.size,
+        total: phraseTotal.get(phrase) || 0
+      }))
+      .filter(x => x.reviews >= 1)
+      .sort((a, b) => b.reviews - a.reviews || b.total - a.total)
+      .slice(0, 10);
+
+    console.log(`%c=== ТОП-10 3-ГРАММ В ОТЗЫВАХ НА 1★ (всего таких отзывов: ${oneStarReviews.length}) ===`, 'color:#c00;font-weight:bold;font-size:14px');
+    if (top3Grams.length === 0) {
+      console.log('%c[OzonScraper] Нет 3-грамм', 'color:#888');
+    } else {
+      top3Grams.forEach((item, i) => {
+        const p = Math.round((item.reviews / oneStarReviews.length) * 100);
+        console.log(`%c${i + 1}. «${item.phrase}» — ${item.reviews} отз. (${p}%), вхождений: ${item.total}`, 'color:#c00');
+      });
+    }
+  } else {
+    console.log('%c[OzonScraper] Отзывов на 1★ с текстом нет — 3-граммы не строятся', 'color:#888');
+  }
+
+  // Для отладки в консоли
+  window.__ozonReviews = allReviews;
+  window.__ozonTop3Grams = top3Grams;
+
+  mark('анализ 3-грамм');
+
+  await browser.runtime.sendMessage({ action: 'setBlockImages', value: false });
+  restoreImages();
+  
+  stopKeepingTabActive();
+  
+  return {
+    line1: `Всего: ${allReviews.length} | устарело: ${allReviews.filter(r => r.isOutdated).length} | без комментария: ${emptyReviews.length} `,
+    line2: `Рейтинг по неустаревшим с комментарием: ${statsWithText.avg.toFixed(2)}  ${starsStr(statsWithText)}`,
+    raw: {
+      total: allReviews.length,
+      outdated: allReviews.filter(r => r.isOutdated).length,
+      fresh: freshReviews.length,
+      empty: emptyReviews.length,
+      withText: withTextReviews.length,
+      avg: statsWithText.avg,
+      counts: statsWithText.counts,
+      top3Grams: top3Grams,
+      timestamp: Date.now()
+    }
+  };
+}
+// Обработчик сообщений для запуска сбора
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'collectOzonRating') {
+    collectOzonRatingStats().then(sendResponse).catch(err => sendResponse({ error: err.message }));
+    return true;
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {

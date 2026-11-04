@@ -174,7 +174,7 @@ function parseOzonPrice(document) {
       console.log(`[parseOzonPrice] Определена валюта: "${currency}"`);
     }
     
-    const discountWidget = document.querySelector('.pdp_kb2');//.querySelector('[data-widget="foundCheaperText"]');
+    const discountWidget = document.querySelector('[data-widget="foundCheaperText"]');
     let discountStatus = null;
     
     if (discountWidget) {
@@ -1381,3 +1381,139 @@ console.log('[SeeToPrice API] Слушаю запросы от других ад
 
 console.log('[BACKGROUND] Скрипт полностью загружен и инициализирован');
 
+
+
+// ===== Блокировка картинок по запросу из content.js =====
+let blockImages = false;
+
+browser.webRequest.onBeforeRequest.addListener(
+  (details) => {
+    if (!blockImages) return {};
+    if (details.type === 'image') {
+      return { cancel: true };
+    }
+    return {};
+  },
+  { urls: ['<all_urls>'] },
+  ['blocking']
+);
+
+
+// ============================================================
+// Подсчёт рейтинга Ozon по кнопке из popup
+// ============================================================
+const RATING_STOP_FLAG = 'ratingStopFlag';
+const RATING_IN_PROGRESS = 'ratingInProgress';
+
+// ============================================================
+// Подсчёт рейтинга Ozon по кнопке из popup
+// Флаги храним ВНУТРИ settings, чтобы аддон не считал их товарами
+// ============================================================
+
+async function setRatingFlags(patch) {
+  const { settings = {} } = await browser.storage.local.get('settings');
+  await browser.storage.local.set({
+    settings: { ...settings, ...patch }
+  });
+}
+
+async function getRatingFlags() {
+  const { settings = {} } = await browser.storage.local.get('settings');
+  return {
+    stop: !!settings.ratingStopFlag,
+    inProgress: !!settings.ratingInProgress
+  };
+}
+
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // --- Проверка флага остановки (вызывает content.js из вкладки) ---
+  if (message.action === 'checkRatingStop') {
+    getRatingFlags().then(flags => sendResponse({ stop: flags.stop }));
+    return true;
+  }
+
+  // --- Запуск подсчёта из popup ---
+  if (message.action === 'startRatingCalc') {
+    (async () => {
+      try {
+        await setRatingFlags({ ratingStopFlag: false, ratingInProgress: true });
+        sendResponse({ success: true, started: true });
+      } catch (e) {
+        sendResponse({ success: false, error: e.message });
+      }
+    })();
+    return true;
+  }
+
+  // --- Остановка подсчёта из popup ---
+  if (message.action === 'stopRatingCalc') {
+    (async () => {
+      try {
+        await setRatingFlags({ ratingStopFlag: true, ratingInProgress: false });
+        sendResponse({ success: true, stopped: true });
+      } catch (e) {
+        sendResponse({ success: false, error: e.message });
+      }
+    })();
+    return true;
+  }
+  
+  
+  if (message.action === 'setBlockImages') {
+    blockImages = !!message.value;
+    console.log(`[BACKGROUND] Блокировка картинок: ${blockImages}`);
+    sendResponse({ success: true });
+    return true;
+  }
+
+  // --- Открыть страницу товара, собрать рейтинг, закрыть вкладку ---
+  if (message.action === 'calcOzonRatingForItem') {
+    (async () => {
+      const { itemId, url } = message;
+      let tab = null;
+      try {
+        await setRatingFlags({ ratingStopFlag: false, ratingInProgress: true });
+
+        tab = await browser.tabs.create({ url: url, active: true });
+        await new Promise(resolve => {
+          browser.tabs.onUpdated.addListener(function listener(tabId, info) {
+            if (tabId === tab.id && info.status === 'complete') {
+              browser.tabs.onUpdated.removeListener(listener);
+              resolve();
+            }
+          });
+        });
+
+        await new Promise(r => setTimeout(r, 1500));
+
+        const result = await browser.tabs.sendMessage(tab.id, { action: 'collectOzonRating' });
+
+        if (result && !result.error) {
+          const current = await browser.storage.local.get(itemId);
+          const item = current[itemId] || {};
+          await browser.storage.local.set({
+            [itemId]: {
+              ...item,
+              ratingStats: {
+                line1: result.line1,
+                line2: result.line2,
+                raw: result.raw
+              }
+            }
+          });
+          sendResponse({ success: true, result });
+        } else {
+          sendResponse({ success: false, error: result?.error || 'Неизвестная ошибка' });
+        }
+      } catch (e) {
+        sendResponse({ success: false, error: e.message });
+      } finally {
+        await setRatingFlags({ ratingInProgress: false });
+        if (tab && tab.id) {
+          try { await browser.tabs.remove(tab.id); } catch (e) {}
+        }
+      }
+    })();
+    return true;
+  }
+});
